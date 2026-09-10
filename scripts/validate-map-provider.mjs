@@ -12,6 +12,9 @@ const GLYPHS = [
   ['Noto Sans Regular', 'https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf'],
 ];
 const RELIEF = 'https://tiles.openfreemap.org/natural_earth/ne2sr/6/14/26.png';
+const USGS_IMAGERY_SERVICE = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer';
+const USGS_IMAGERY_META = `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer?f=pjson`;
+const USGS_IMAGERY_SAN_ANTONIO = `https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/8/106/57`;
 const CENSUS_LAYER = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82';
 const CENSUS_META = `${CENSUS_LAYER}?f=pjson`;
 const CENSUS_BEXAR = `${CENSUS_LAYER}/query?where=GEOID%3D%2748029%27&outFields=GEOID%2CBASENAME%2CNAME%2CINTPTLAT%2CINTPTLON&returnGeometry=true&outSR=4326&geometryPrecision=5&f=geojson`;
@@ -81,6 +84,30 @@ for (const [font, url] of GLYPHS) {
 const reliefResponse = await fetchChecked('Natural Earth relief tile', RELIEF, 'image/png, */*');
 if ((await reliefResponse.arrayBuffer()).byteLength < 100) throw new Error('Natural Earth relief tile was implausibly small.');
 
+const { value: usgsImagery } = await json('USGS ImageryOnly metadata', USGS_IMAGERY_META);
+if (usgsImagery.mapName !== 'USGSImageryOnly') throw new Error(`USGS imagery service identity changed to ${String(usgsImagery.mapName)}.`);
+if (usgsImagery.singleFusedMapCache !== true) throw new Error('USGS imagery is no longer advertised as a single fused map cache.');
+if (usgsImagery.tileInfo?.rows !== 256 || usgsImagery.tileInfo?.cols !== 256) throw new Error('USGS imagery tile dimensions changed from 256x256.');
+const usgsWkid = Number(usgsImagery.tileInfo?.spatialReference?.latestWkid ?? usgsImagery.tileInfo?.spatialReference?.wkid);
+if (![3857, 102100].includes(usgsWkid)) throw new Error(`USGS imagery projection changed from Web Mercator (got ${String(usgsWkid)}).`);
+if (!Array.isArray(usgsImagery.tileInfo?.lods)) throw new Error('USGS imagery no longer exposes a cached LOD table.');
+const usgsLevel16 = usgsImagery.tileInfo.lods.find((lod) => lod?.level === 16);
+if (!usgsLevel16 || !Number.isFinite(Number(usgsLevel16.scale))) throw new Error('USGS imagery cache no longer exposes usable level 16 tiles.');
+if (Number(usgsImagery.maxScale) > 0 && Math.abs(Number(usgsImagery.maxScale) - Number(usgsLevel16.scale)) > 2) {
+  throw new Error(`USGS imagery advertised maximum scale no longer aligns to cached level 16 (maxScale=${String(usgsImagery.maxScale)}, z16=${String(usgsLevel16.scale)}).`);
+}
+if (!String(usgsImagery.copyrightText ?? '').includes('USGS')) throw new Error('USGS imagery metadata lost expected attribution text.');
+
+const imageryResponse = await fetchChecked('USGS San Antonio imagery tile', USGS_IMAGERY_SAN_ANTONIO, 'image/jpeg, image/png, */*');
+if (String(imageryResponse.headers.get('blank-tile') ?? '').toLowerCase() === 'true') throw new Error('USGS San Antonio imagery probe returned a blank cache tile.');
+const imageryContentType = String(imageryResponse.headers.get('content-type') ?? '').toLowerCase();
+const imageryBytes = new Uint8Array(await imageryResponse.arrayBuffer());
+if (imageryBytes.byteLength < 1000) throw new Error('USGS San Antonio imagery tile returned an implausibly small payload.');
+const isJpeg = imageryBytes.length >= 3 && imageryBytes[0] === 0xff && imageryBytes[1] === 0xd8 && imageryBytes[2] === 0xff;
+const isPng = imageryBytes.length >= 8 && imageryBytes[0] === 0x89 && imageryBytes[1] === 0x50 && imageryBytes[2] === 0x4e && imageryBytes[3] === 0x47 && imageryBytes[4] === 0x0d && imageryBytes[5] === 0x0a && imageryBytes[6] === 0x1a && imageryBytes[7] === 0x0a;
+if (!isJpeg && !isPng) throw new Error(`USGS San Antonio imagery tile was not JPEG/PNG image data (Content-Type ${JSON.stringify(imageryContentType)}).`);
+if (imageryContentType && !imageryContentType.startsWith('image/')) throw new Error(`USGS San Antonio imagery tile returned non-image Content-Type ${JSON.stringify(imageryContentType)}.`);
+
 const { value: censusMeta } = await json('Census county layer metadata', CENSUS_META);
 if (censusMeta.name !== 'Counties') throw new Error(`Census layer 82 is no longer Counties (got ${String(censusMeta.name)}).`);
 if (!String(censusMeta.description ?? '').includes('January 1, 2026 vintage')) throw new Error(`Census Counties vintage changed: ${String(censusMeta.description)}`);
@@ -103,5 +130,7 @@ if (!['Polygon', 'MultiPolygon'].includes(bexar.features[0]?.geometry?.type)) th
 
 console.log('RBRWX live basemap/provider preflight: PASS');
 console.log(`  OpenFreeMap schema layers: ${tileJson.vector_layers.length}`);
-console.log(`  San Antonio z8 tile bytes: ${tileBytes.byteLength}`);
+console.log(`  San Antonio z8 vector tile bytes: ${tileBytes.byteLength}`);
+console.log(`  USGS San Antonio imagery tile bytes: ${imageryBytes.byteLength}`);
+console.log(`  USGS imagery cache levels: ${usgsImagery.tileInfo.lods.length}`);
 console.log(`  Census county layer: ${censusMeta.description ?? censusMeta.name}`);

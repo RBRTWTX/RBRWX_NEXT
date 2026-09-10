@@ -12,7 +12,7 @@
     "rbrwx-basemap": {
       "type": "vector",
       "url": "https://tiles.openfreemap.org/planet",
-      "attribution": "OpenFreeMap \u00a9 OpenMapTiles \u00a9 OpenStreetMap contributors"
+      "attribution": "OpenFreeMap © OpenMapTiles © OpenStreetMap contributors"
     },
     "rbrwx-relief": {
       "type": "raster",
@@ -43,6 +43,16 @@
         "type": "FeatureCollection",
         "features": []
       }
+    },
+    "rbrwx-satellite-basemap": {
+      "type": "raster",
+      "tiles": [
+        "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"
+      ],
+      "tileSize": 256,
+      "minzoom": 0,
+      "maxzoom": 16,
+      "attribution": "USDA, USGS The National Map: Orthoimagery"
     }
   },
   "layers": [
@@ -51,6 +61,20 @@
       "type": "background",
       "paint": {
         "background-color": "#68725f"
+      }
+    },
+    {
+      "id": "rbrwx-satellite-imagery",
+      "type": "raster",
+      "source": "rbrwx-satellite-basemap",
+      "minzoom": 0,
+      "maxzoom": 19,
+      "layout": {
+        "visibility": "none"
+      },
+      "paint": {
+        "raster-opacity": 1,
+        "raster-fade-duration": 0
       }
     },
     {

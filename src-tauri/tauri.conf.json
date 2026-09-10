@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http://ipc.localhost https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; img-src 'self' asset: http://asset.localhost data: blob: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; worker-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval'"
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http://ipc.localhost https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov https://basemap.nationalmap.gov; img-src 'self' asset: http://asset.localhost data: blob: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov https://basemap.nationalmap.gov; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; worker-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval'"
     }
   },
   "bundle": {

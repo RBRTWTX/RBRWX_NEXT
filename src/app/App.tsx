@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { BroadcastMap, type MapHealth } from '../map/BroadcastMap';
-import type { BroadcastLayerGroup } from '../map/broadcastMapContract';
+import type { BroadcastBasemapMode, BroadcastLayerGroup } from '../map/broadcastMapContract';
 
 const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
   roads: true,
@@ -18,6 +18,7 @@ const healthLabel: Record<MapHealth, string> = {
 };
 
 export function App() {
+  const [basemapMode, setBasemapMode] = useState<BroadcastBasemapMode>('broadcast');
   const [visibility, setVisibility] = useState(initialVisibility);
   const [health, setHealth] = useState<MapHealth>('starting');
   const [healthMessage, setHealthMessage] = useState('Initializing renderer…');
@@ -55,11 +56,12 @@ export function App() {
           <strong>Broadcast Map</strong>
           <small>Live geographic foundation</small>
         </button>
-        <div className="rail-note">Weather products remain intentionally absent in 0.1.0 foundation work.</div>
+        <div className="rail-note">Satellite Map is reference imagery only. GOES and other weather-satellite products remain separate future weather layers.</div>
       </aside>
 
       <section className="map-stage">
         <BroadcastMap
+          basemapMode={basemapMode}
           visibility={visibility}
           onHealthChange={(nextHealth, message) => {
             setHealth(nextHealth);
@@ -71,14 +73,32 @@ export function App() {
 
         <div className="map-title-card">
           <span className="map-title-card__kicker">RBRWX NEXT</span>
-          <strong>Broadcast Map Foundation</strong>
-          <span>South-Central Texas</span>
+          <strong>{basemapMode === 'satellite' ? 'Satellite Basemap' : 'Broadcast Map Foundation'}</strong>
+          <span>{basemapMode === 'satellite' ? 'USGS satellite / aerial reference imagery' : 'South-Central Texas'}</span>
         </div>
 
         <div className="map-health-message">{healthMessage}</div>
       </section>
 
       <aside className="control-panel">
+        <div className="panel-heading">
+          <span>BASEMAP</span>
+          <small>exclusive display mode</small>
+        </div>
+        {(['broadcast', 'satellite'] as BroadcastBasemapMode[]).map((mode) => (
+          <button
+            key={mode}
+            className={`layer-toggle ${basemapMode === mode ? 'layer-toggle--on' : ''}`}
+            type="button"
+            aria-pressed={basemapMode === mode}
+            onClick={() => setBasemapMode(mode)}
+          >
+            <span className="layer-toggle__lamp" />
+            <span>{mode === 'satellite' ? 'SATELLITE' : 'MAP'}</span>
+            <b>{basemapMode === mode ? 'ON' : 'OFF'}</b>
+          </button>
+        ))}
+        <div className="panel-divider" />
         <div className="panel-heading">
           <span>MAP REFERENCES</span>
           <small>independent controls</small>
@@ -97,6 +117,7 @@ export function App() {
         ))}
         <div className="panel-contract">
           <strong>LAYER CONTRACT</strong>
+          <span>Satellite imagery: below roads/weather</span>
           <span>Road geometry: below weather</span>
           <span>County/state lines: above weather</span>
           <span>Road shields/cities: above weather</span>

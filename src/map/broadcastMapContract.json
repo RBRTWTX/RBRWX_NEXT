@@ -5,14 +5,17 @@
     "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
     "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
     "reliefTiles": "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png",
-    "censusCountyLayer": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82"
+    "censusCountyLayer": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82",
+    "satelliteService": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer",
+    "satelliteTiles": "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"
   },
   "sources": {
     "basemap": "rbrwx-basemap",
     "relief": "rbrwx-relief",
     "weatherSlot": "rbrwx-weather-slot",
     "countyBoundaries": "rbrwx-county-boundaries",
-    "countyLabels": "rbrwx-county-labels"
+    "countyLabels": "rbrwx-county-labels",
+    "satellite": "rbrwx-satellite-basemap"
   },
   "images": {
     "texasRouteBadge": "rbrwx-tx-route-badge"
@@ -48,7 +51,8 @@
     "cityRegional": "rbrwx-city-regional",
     "cityMajor": "rbrwx-city-major",
     "stateLabel": "rbrwx-state-label",
-    "texasRouteRef": "rbrwx-route-ref-texas"
+    "texasRouteRef": "rbrwx-route-ref-texas",
+    "satellite": "rbrwx-satellite-imagery"
   },
   "groups": {
     "roads": [
@@ -87,6 +91,7 @@
   "planes": {
     "underWeather": [
       "rbrwx-background",
+      "rbrwx-satellite-imagery",
       "rbrwx-relief",
       "rbrwx-landcover",
       "rbrwx-urban",
@@ -121,5 +126,17 @@
       "rbrwx-state-label"
     ]
   },
-  "weatherInsertBefore": "rbrwx-county-boundary"
+  "weatherInsertBefore": "rbrwx-county-boundary",
+  "basemapModes": {
+    "broadcast": [
+      "rbrwx-relief",
+      "rbrwx-landcover",
+      "rbrwx-urban",
+      "rbrwx-water",
+      "rbrwx-waterway"
+    ],
+    "satellite": [
+      "rbrwx-satellite-imagery"
+    ]
+  }
 }

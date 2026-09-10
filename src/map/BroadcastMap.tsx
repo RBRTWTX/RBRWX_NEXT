@@ -11,8 +11,10 @@ import { broadcastMapStyle } from './broadcastMapStyle';
 import { installBroadcastRouteImageResolver } from './routeBadges';
 import {
   assertBroadcastLayerSeparation,
+  BROADCAST_BASEMAP_MODES,
   BROADCAST_LAYER_GROUPS,
   BROADCAST_SOURCE_IDS,
+  type BroadcastBasemapMode,
   type BroadcastLayerGroup,
 } from './broadcastMapContract';
 import {
@@ -26,6 +28,7 @@ setWorkerUrl(workerUrl);
 export type MapHealth = 'starting' | 'ready' | 'degraded' | 'failed';
 
 interface BroadcastMapProps {
+  basemapMode: BroadcastBasemapMode;
   visibility: Record<BroadcastLayerGroup, boolean>;
   onHealthChange: (health: MapHealth, message: string) => void;
   onCameraChange?: (camera: { zoom: number; lng: number; lat: number }) => void;
@@ -43,14 +46,25 @@ function applyVisibility(map: MapLibreMap, group: BroadcastLayerGroup, visible: 
   }
 }
 
-export function BroadcastMap({ visibility, onHealthChange, onCameraChange }: BroadcastMapProps) {
+function applyBasemapMode(map: MapLibreMap, activeMode: BroadcastBasemapMode): void {
+  for (const [mode, layerIds] of Object.entries(BROADCAST_BASEMAP_MODES) as [BroadcastBasemapMode, string[]][]) {
+    const value = mode === activeMode ? 'visible' : 'none';
+    for (const layerId of layerIds) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', value);
+    }
+  }
+}
+
+export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCameraChange }: BroadcastMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const basemapModeRef = useRef(basemapMode);
   const visibilityRef = useRef(visibility);
   const healthCallbackRef = useRef(onHealthChange);
   const cameraCallbackRef = useRef(onCameraChange);
   const [ready, setReady] = useState(false);
 
+  basemapModeRef.current = basemapMode;
   visibilityRef.current = visibility;
   healthCallbackRef.current = onHealthChange;
   cameraCallbackRef.current = onCameraChange;
@@ -79,7 +93,7 @@ export function BroadcastMap({ visibility, onHealthChange, onCameraChange }: Bro
         healthCallbackRef.current('degraded', firstProblem);
         return;
       }
-      if (styleLoaded && initialCountyResolved) healthCallbackRef.current('ready', 'Broadcast basemap and authoritative county sources loaded.');
+      if (styleLoaded && initialCountyResolved) healthCallbackRef.current('ready', 'Broadcast geographic sources and authoritative county sources loaded.');
     };
 
     const map = new MapLibreMap({
@@ -157,6 +171,7 @@ export function BroadcastMap({ visibility, onHealthChange, onCameraChange }: Bro
     map.once('load', () => {
       const requiredSources = [
         BROADCAST_SOURCE_IDS.basemap,
+        BROADCAST_SOURCE_IDS.satellite,
         BROADCAST_SOURCE_IDS.relief,
         BROADCAST_SOURCE_IDS.countyBoundaries,
         BROADCAST_SOURCE_IDS.countyLabels,
@@ -174,6 +189,7 @@ export function BroadcastMap({ visibility, onHealthChange, onCameraChange }: Bro
       for (const [group, visible] of Object.entries(visibilityRef.current) as [BroadcastLayerGroup, boolean][]) {
         applyVisibility(map, group, visible);
       }
+      applyBasemapMode(map, basemapModeRef.current);
 
       styleLoaded = true;
       setReady(true);
@@ -203,6 +219,12 @@ export function BroadcastMap({ visibility, onHealthChange, onCameraChange }: Bro
       setReady(false);
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    applyBasemapMode(map, basemapMode);
+  }, [basemapMode, ready]);
 
   useEffect(() => {
     const map = mapRef.current;

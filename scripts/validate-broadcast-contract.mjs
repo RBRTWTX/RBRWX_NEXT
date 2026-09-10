@@ -4,7 +4,9 @@ const root = new URL('../', import.meta.url);
 const contract = JSON.parse(await readFile(new URL('src/map/broadcastMapContract.json', root), 'utf8'));
 const style = JSON.parse(await readFile(new URL('src/map/broadcastMapStyle.json', root), 'utf8'));
 const broadcastMapSource = await readFile(new URL('src/map/BroadcastMap.tsx', root), 'utf8');
+const appSource = await readFile(new URL('src/app/App.tsx', root), 'utf8');
 const routeBadgeSource = await readFile(new URL('src/map/routeBadges.ts', root), 'utf8');
+const tauriConfig = JSON.parse(await readFile(new URL('src-tauri/tauri.conf.json', root), 'utf8'));
 
 function fail(message) {
   throw new Error(`Broadcast map contract: ${message}`);
@@ -45,6 +47,11 @@ if (style.sources[contract.sources.basemap]?.url !== contract.providers.basemapT
 if (style.glyphs !== contract.providers.glyphs) fail('glyph URL drifted from contract.');
 if (style.sprite !== contract.providers.sprite) fail('sprite URL drifted from contract.');
 if (style.sources[contract.sources.relief]?.tiles?.[0] !== contract.providers.reliefTiles) fail('relief tile URL drifted from contract.');
+if (style.sources[contract.sources.satellite]?.type !== 'raster') fail('satellite basemap source must be raster.');
+if (style.sources[contract.sources.satellite]?.tiles?.[0] !== contract.providers.satelliteTiles) fail('satellite tile URL drifted from contract.');
+if (style.sources[contract.sources.satellite]?.tileSize !== 256) fail('satellite tile size must remain 256.');
+if (style.sources[contract.sources.satellite]?.maxzoom !== 16) fail('satellite source maxzoom must remain aligned to the advertised USGS imagery scale.');
+if (!String(style.sources[contract.sources.satellite]?.attribution ?? '').includes('USGS')) fail('satellite imagery attribution is missing USGS.');
 
 if (contract.sources.countyBoundaries === contract.sources.countyLabels) fail('county boundary and label sources must remain separate.');
 if (style.sources[contract.sources.countyBoundaries]?.type !== 'geojson') fail('county boundary source must be GeoJSON.');
@@ -67,6 +74,13 @@ if (layerById(contract.layers.countyBoundary).source !== contract.sources.county
 if (layerById(contract.layers.countyLabel).source !== contract.sources.countyLabels) fail('county label layer is not bound to the county interior-point source.');
 if (JSON.stringify(layerById(contract.layers.countyLabel).filter) !== JSON.stringify(['==', ['geometry-type'], 'Point'])) fail('county labels must render only Census interior-point features.');
 if (layerById(contract.layers.weatherAnchor).source !== contract.sources.weatherSlot) fail('weather anchor is not bound to the weather insertion source.');
+
+const satelliteLayer = layerById(contract.layers.satellite);
+if (satelliteLayer.type !== 'raster') fail('satellite basemap layer must be raster.');
+if (satelliteLayer.source !== contract.sources.satellite) fail('satellite basemap layer is not bound to the satellite source.');
+if (satelliteLayer.layout?.visibility !== 'none') fail('satellite basemap must default OFF so the accepted broadcast map remains the startup mode.');
+if (satelliteLayer.paint?.['raster-opacity'] !== 1) fail('satellite basemap must preserve source imagery at full opacity.');
+if (satelliteLayer.paint?.['raster-fade-duration'] !== 0) fail('satellite basemap must not crossfade stale imagery tiles.');
 
 for (const id of [
   contract.layers.roadMinorCasing,
@@ -129,6 +143,45 @@ if (resolverInstall < 0 || styleInstall < 0 || resolverInstall > styleInstall) {
   fail('owned route-image resolver must be installed before the broadcast style.');
 }
 
+
+if (!contract.basemapModes || !Array.isArray(contract.basemapModes.broadcast) || !Array.isArray(contract.basemapModes.satellite)) {
+  fail('basemap mode ownership contract is missing.');
+}
+const expectedBroadcastBase = [
+  contract.layers.relief, contract.layers.landcover, contract.layers.urban, contract.layers.water, contract.layers.waterway,
+];
+if (JSON.stringify(contract.basemapModes.broadcast) !== JSON.stringify(expectedBroadcastBase)) fail('broadcast basemap mode ownership drifted.');
+if (JSON.stringify(contract.basemapModes.satellite) !== JSON.stringify([contract.layers.satellite])) fail('satellite basemap mode ownership drifted.');
+const referenceOwners = new Set(Object.values(contract.groups).flat());
+const basemapOwners = new Set();
+for (const [mode, ids] of Object.entries(contract.basemapModes)) {
+  for (const id of ids) {
+    if (referenceOwners.has(id)) fail(`basemap layer ${id} must not also belong to a reference visibility group.`);
+    if (basemapOwners.has(id)) fail(`basemap layer ${id} is owned by more than one mode.`);
+    basemapOwners.add(id);
+    if (!contract.planes.underWeather.includes(id)) fail(`basemap mode ${mode} owns ${id} outside the under-weather plane.`);
+  }
+}
+const satelliteIndex = styleLayerIds.indexOf(contract.layers.satellite);
+const backgroundIndex = styleLayerIds.indexOf(contract.layers.background);
+const firstRoadIndex = styleLayerIds.indexOf(contract.layers.roadMinorCasing);
+if (!(backgroundIndex < satelliteIndex && satelliteIndex < firstRoadIndex)) fail('satellite imagery must remain below road geometry and weather.');
+
+const csp = String(tauriConfig.app?.security?.csp ?? '');
+for (const directive of ['connect-src', 'img-src']) {
+  const section = csp.split(';').map((value) => value.trim()).find((value) => value === directive || value.startsWith(`${directive} `));
+  if (!section?.includes('https://basemap.nationalmap.gov')) fail(`Tauri CSP ${directive} does not allow the USGS satellite provider.`);
+}
+for (const token of ['applyBasemapMode', 'BROADCAST_BASEMAP_MODES', 'basemapModeRef']) {
+  if (!broadcastMapSource.includes(token)) fail(`BroadcastMap satellite mode wiring is missing ${token}.`);
+}
+if (!broadcastMapSource.includes('applyBasemapMode(map, basemapModeRef.current)')) fail('BroadcastMap does not apply the selected basemap mode during initial map load.');
+if (!broadcastMapSource.includes('applyBasemapMode(map, basemapMode)')) fail('BroadcastMap does not apply live basemap-mode changes.');
+if ((broadcastMapSource.match(/\.setStyle\(/g) ?? []).length !== 1) fail('BroadcastMap must contain exactly one setStyle() call; basemap switching must not reload the MapLibre style.');
+for (const token of ['setBasemapMode', "'satellite'", 'SATELLITE']) {
+  if (!appSource.includes(token)) fail(`operator satellite basemap control is missing ${token}.`);
+}
+if (!appSource.includes("useState<BroadcastBasemapMode>('broadcast')")) fail('Accepted broadcast map must remain the startup basemap mode.');
 
 const planeOrder = [
   ...contract.planes.underWeather,
