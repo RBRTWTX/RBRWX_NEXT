@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RBRWX NEXT",
+  "version": "0.1.0",
+  "identifier": "com.rbrtwtx.rbrwxnext",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "RBRWX NEXT",
+        "width": 1600,
+        "height": 960,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http://ipc.localhost https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; img-src 'self' asset: http://asset.localhost data: blob: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; worker-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval'"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "rbrwx-next",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "dev": "vite",
+    "map:integrity": "node scripts/validate-payload-manifest.mjs",
+    "map:contract": "node scripts/validate-broadcast-contract.mjs",
+    "map:style": "gl-style-validate src/map/broadcastMapStyle.json",
+    "map:provider": "node scripts/validate-map-provider.mjs",
+    "typecheck": "tsc -b --pretty false",
+    "build": "tsc -b && vite build",
+    "verify": "npm run map:integrity && npm run native:assets && npm run map:contract && npm run map:style && npm run map:provider:test && npm run map:provider && npm run typecheck && npm run build",
+    "tauri": "tauri",
+    "map:provider:test": "node --test scripts/provider-http.test.mjs",
+    "native:assets": "node scripts/validate-native-assets.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "maplibre-gl": "6.8.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "@types/node": "22.20.1",
+    "@types/geojson": "7946.0.16",
+    "@maplibre/maplibre-gl-style-spec": "26.4.1"
+  }
+}

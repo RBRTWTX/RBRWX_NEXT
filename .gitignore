@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src-tauri/target/
+.rbrwx-backups/
+.rbrwx-stage*/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

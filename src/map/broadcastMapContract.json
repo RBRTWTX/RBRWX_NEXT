@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "providers": {
+    "basemapTileJson": "https://tiles.openfreemap.org/planet",
+    "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
+    "reliefTiles": "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png",
+    "censusCountyLayer": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82"
+  },
+  "sources": {
+    "basemap": "rbrwx-basemap",
+    "relief": "rbrwx-relief",
+    "weatherSlot": "rbrwx-weather-slot",
+    "countyBoundaries": "rbrwx-county-boundaries",
+    "countyLabels": "rbrwx-county-labels"
+  },
+  "images": {
+    "texasRouteBadge": "rbrwx-tx-route-badge"
+  },
+  "layers": {
+    "background": "rbrwx-background",
+    "relief": "rbrwx-relief",
+    "landcover": "rbrwx-landcover",
+    "urban": "rbrwx-urban",
+    "water": "rbrwx-water",
+    "waterway": "rbrwx-waterway",
+    "roadMinorCasing": "rbrwx-road-minor-casing",
+    "roadMinor": "rbrwx-road-minor",
+    "roadSecondaryCasing": "rbrwx-road-secondary-casing",
+    "roadSecondary": "rbrwx-road-secondary",
+    "roadPrimaryCasing": "rbrwx-road-primary-casing",
+    "roadPrimary": "rbrwx-road-primary",
+    "roadTrunkCasing": "rbrwx-road-trunk-casing",
+    "roadTrunk": "rbrwx-road-trunk",
+    "roadMotorwayCasing": "rbrwx-road-motorway-casing",
+    "roadMotorway": "rbrwx-road-motorway",
+    "weatherAnchor": "rbrwx-weather-anchor",
+    "countyBoundary": "rbrwx-county-boundary",
+    "stateBoundaryCasing": "rbrwx-state-boundary-casing",
+    "stateBoundary": "rbrwx-state-boundary",
+    "roadNameMajor": "rbrwx-road-name-major",
+    "roadNameLocal": "rbrwx-road-name-local",
+    "interstateShield": "rbrwx-shield-interstate",
+    "usHighwayShield": "rbrwx-shield-us-highway",
+    "countyLabel": "rbrwx-county-label",
+    "cityMinor": "rbrwx-city-minor",
+    "cityTown": "rbrwx-city-town",
+    "cityRegional": "rbrwx-city-regional",
+    "cityMajor": "rbrwx-city-major",
+    "stateLabel": "rbrwx-state-label",
+    "texasRouteRef": "rbrwx-route-ref-texas"
+  },
+  "groups": {
+    "roads": [
+      "rbrwx-road-minor-casing",
+      "rbrwx-road-minor",
+      "rbrwx-road-secondary-casing",
+      "rbrwx-road-secondary",
+      "rbrwx-road-primary-casing",
+      "rbrwx-road-primary",
+      "rbrwx-road-trunk-casing",
+      "rbrwx-road-trunk",
+      "rbrwx-road-motorway-casing",
+      "rbrwx-road-motorway",
+      "rbrwx-road-name-major",
+      "rbrwx-road-name-local",
+      "rbrwx-shield-interstate",
+      "rbrwx-shield-us-highway",
+      "rbrwx-route-ref-texas"
+    ],
+    "cities": [
+      "rbrwx-city-minor",
+      "rbrwx-city-town",
+      "rbrwx-city-regional",
+      "rbrwx-city-major"
+    ],
+    "counties": [
+      "rbrwx-county-boundary",
+      "rbrwx-county-label"
+    ],
+    "states": [
+      "rbrwx-state-boundary-casing",
+      "rbrwx-state-boundary",
+      "rbrwx-state-label"
+    ]
+  },
+  "planes": {
+    "underWeather": [
+      "rbrwx-background",
+      "rbrwx-relief",
+      "rbrwx-landcover",
+      "rbrwx-urban",
+      "rbrwx-water",
+      "rbrwx-waterway",
+      "rbrwx-road-minor-casing",
+      "rbrwx-road-minor",
+      "rbrwx-road-secondary-casing",
+      "rbrwx-road-secondary",
+      "rbrwx-road-primary-casing",
+      "rbrwx-road-primary",
+      "rbrwx-road-trunk-casing",
+      "rbrwx-road-trunk",
+      "rbrwx-road-motorway-casing",
+      "rbrwx-road-motorway"
+    ],
+    "weatherAnchor": "rbrwx-weather-anchor",
+    "aboveWeather": [
+      "rbrwx-county-boundary",
+      "rbrwx-state-boundary-casing",
+      "rbrwx-state-boundary",
+      "rbrwx-road-name-major",
+      "rbrwx-road-name-local",
+      "rbrwx-shield-interstate",
+      "rbrwx-shield-us-highway",
+      "rbrwx-route-ref-texas",
+      "rbrwx-county-label",
+      "rbrwx-city-minor",
+      "rbrwx-city-town",
+      "rbrwx-city-regional",
+      "rbrwx-city-major",
+      "rbrwx-state-label"
+    ]
+  },
+  "weatherInsertBefore": "rbrwx-county-boundary"
+}

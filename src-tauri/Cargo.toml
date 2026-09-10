@@ -1,0 +1,19 @@
+[package]
+name = "rbrwx-next"
+version = "0.1.0"
+description = "RBRWX NEXT broadcast weather workstation"
+authors = ["RBRTWTX"]
+edition = "2021"
+rust-version = "1.98.1"
+
+[lib]
+name = "rbrwx_next_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = [] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"

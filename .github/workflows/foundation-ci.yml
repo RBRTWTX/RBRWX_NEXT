@@ -1,0 +1,49 @@
+name: 0.1.0 Broadcast Map Foundation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  foundation-gates:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install pinned Rust toolchain
+        shell: pwsh
+        run: rustup toolchain install 1.98.1 --profile minimal
+
+      - name: Verify toolchains
+        shell: pwsh
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+
+      - name: Install frontend dependencies from lockfile
+        shell: pwsh
+        run: npm ci --no-audit --no-fund
+
+      - name: Run broadcast-map gates
+        shell: pwsh
+        run: npm run verify
+
+      - name: Cargo check from lockfile
+        shell: pwsh
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Build Tauri executable without installer bundle
+        shell: pwsh
+        run: npm run tauri -- build --no-bundle

@@ -1,0 +1,8 @@
+Unmodified default icons from tauri-apps/create-tauri-app.
+Temporary framework icons; no custom RBRWX branding was generated.
+
+https://github.com/tauri-apps/create-tauri-app/tree/dev/templates/_base_/src-tauri/icons
+icon.ico Git blob: 06c23c82fea615c9394c4c7f487392e3f0a2fd4a
+icon.png: unmodified copy of upstream 32x32.png
+Git blob: 9c0ad672d8ce5a6ac754d560368c332ce87add2a
+MIT license included as LICENSE-MIT.txt.
