@@ -1,0 +1,97 @@
+:root {
+  color: #f3f7fb;
+  background: #071019;
+  font-family: Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 960px; min-height: 100vh; background: #071019; }
+button, input, select { font: inherit; }
+
+.demo-shell {
+  display: grid;
+  grid-template: 62px minmax(0, 1fr) / 280px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.demo-topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  background: linear-gradient(180deg, #122232, #09131e);
+  border-bottom: 1px solid #26394a;
+}
+
+.demo-topbar div { display: flex; align-items: baseline; gap: 12px; }
+.demo-topbar b { font-size: 18px; letter-spacing: 0.08em; }
+.demo-topbar span, .demo-topbar small { color: #8ca2b5; }
+
+.demo-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 14px;
+  background: #0a1520;
+  border-right: 1px solid #203243;
+}
+
+.demo-scene-controls {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  background: #0a1520;
+  border: 1px solid #203243;
+  border-radius: 6px;
+}
+
+.demo-scene-controls h2 {
+  margin: 0 0 3px;
+  color: #91a4b5;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.demo-scene-controls button {
+  padding: 8px 9px;
+  color: #8fa2b3;
+  text-align: left;
+  background: #0d1a26;
+  border: 1px solid #273a4b;
+  border-radius: 4px;
+}
+
+.demo-scene-controls button.is-active {
+  color: #e6eef5;
+  border-color: #47657d;
+  box-shadow: inset 3px 0 #6ab6e8;
+}
+
+.demo-program {
+  position: relative;
+  align-self: center;
+  width: min(100%, calc((100vh - 90px) * 16 / 9));
+  margin: auto;
+  overflow: hidden;
+  background: #101b20;
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.4);
+}
+
+.demo-map {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(23deg, transparent 48%, rgba(105, 180, 226, 0.13) 49% 51%, transparent 52%),
+    linear-gradient(151deg, transparent 48%, rgba(105, 180, 226, 0.09) 49% 51%, transparent 52%),
+    radial-gradient(circle at 42% 48%, #28454e, #11272d 46%, #0d1a20 75%);
+  color: #64808c;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.demo-program .rbrwx-graphics-stage { position: relative; }

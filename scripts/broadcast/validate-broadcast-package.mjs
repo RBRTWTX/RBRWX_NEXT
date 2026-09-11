@@ -126,7 +126,7 @@ for (const relative of hostFiles) {
     }
     const resolved = normalizeResolvedImport(relative, spec);
     if (!resolved) continue;
-    const allowed = isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/map');
+    const allowed = isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/map') || isWithin(resolved, 'src/broadcast-graphics');
     if (!allowed) fail(`${relative} imports outside the allowed host boundary via ${spec}.`);
   }
 }

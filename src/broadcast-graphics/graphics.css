@@ -1,0 +1,19 @@
+.wxg-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 10; }
+.wxg-design { position: absolute; width: 1920px; height: 1080px; transform-origin: 0 0; pointer-events: none; }
+.wxg-bar { position: absolute; transform-origin: 0 0; pointer-events: auto; touch-action: none; user-select: none; cursor: default; box-sizing: border-box; overflow: hidden; border-radius: 6px; color: #f5f8fb; background: linear-gradient(106deg,#132230,#07111a 74%); font-family: 'Arial Narrow',Arial,sans-serif; border: 1px solid #506070; }
+.wxg-bar::before { content: ''; position: absolute; inset: 0 0 auto; height: 10px; background: linear-gradient(90deg,#032568,#531e78,#cb1678); pointer-events: none; }
+.wxg-text { position: absolute; inset: 21px 40px 12px; display: block; align-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 40px; font-weight: 900; line-height: 1.2; outline: none; }
+.wxg-text[contenteditable=true] { user-select: text; cursor: text; }
+.wxg-ticker .wxg-text { inset: 12px 30px 4px; font-size: 28px; }
+.wxg-ticker::before { height: 5px; }
+.wxg-menu { display: grid; gap: 8px; margin-bottom: 14px; font: 12px Arial,sans-serif; }
+.wxg-menu label { display: grid; gap: 4px; color: #b8c9d5; }
+.wxg-menu .wxg-toggle { display: flex; justify-content: space-between; align-items: center; }
+.wxg-menu input:not([type=checkbox]), .wxg-menu select { width: 100%; min-width: 0; box-sizing: border-box; color: #f5f8fb; background: #102131; border: 1px solid #31475a; padding: 5px; }
+.wxg-menu input[type=checkbox], .wxg-menu input[type=range] { accent-color: #6cc6f2; }
+.rbrwx-broadcast-workspace .control-panel { overflow-y: auto; }
+.map-stage:has(.wxg-overlay[data-title-visible=true]) > .map-title-card { visibility: hidden; }
+
+.wxg-crawl { display: inline-block; min-width: 100%; animation: wxg-crawl 25s linear infinite; }
+@keyframes wxg-crawl { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .wxg-crawl { animation: none; } }

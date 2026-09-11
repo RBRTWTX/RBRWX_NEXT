@@ -1,0 +1,190 @@
+.rbrwx-graphics-stage {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+  isolation: isolate;
+  pointer-events: none;
+  user-select: none;
+}
+
+.rbrwx-graphics-stage__design {
+  position: absolute;
+  inset: 0 auto auto 0;
+  overflow: visible;
+  transform-origin: 0 0;
+  font-family: "Arial Narrow", "Roboto Condensed", "Franklin Gothic Condensed", Arial, sans-serif;
+  pointer-events: none;
+}
+
+.rbrwx-graphic {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rbrwx-title-bar,
+.rbrwx-lower-third,
+.rbrwx-ticker {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: var(--rbrtw-text);
+  border: 1px solid rgba(190, 219, 241, 0.32);
+  background:
+    radial-gradient(circle at 18% 42%, rgba(96, 137, 171, 0.18), transparent 34%),
+    linear-gradient(106deg, var(--rbrtw-panel), var(--rbrtw-panel-deep) 74%);
+  box-shadow: 0 7px 25px rgba(0, 0, 0, 0.48), inset 0 -1px rgba(255, 255, 255, 0.08);
+}
+
+.rbrwx-title-bar {
+  position: relative;
+  border-radius: 7px;
+}
+
+.rbrwx-title-bar__accent {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 10px;
+  background: linear-gradient(90deg, var(--rbrtw-navy), var(--rbrtw-purple), var(--rbrtw-magenta));
+}
+
+.rbrwx-title-bar__accent::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 23%;
+  height: 12px;
+  transform: skewX(-28deg);
+  transform-origin: left top;
+  background: linear-gradient(90deg, var(--rbrtw-navy), var(--rbrtw-purple));
+  opacity: 0.86;
+}
+
+.rbrwx-title-bar__text {
+  position: absolute;
+  inset: 19% 2.4% 10%;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--rbrtw-text);
+  font-size: clamp(25px, 3.7vh, 40px);
+  font-stretch: condensed;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 1.3px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rbrwx-lower-third {
+  position: relative;
+  border-radius: 7px;
+}
+
+.rbrwx-lower-third__accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 21px;
+  background: linear-gradient(180deg, var(--rbrtw-navy), var(--rbrtw-purple), var(--rbrtw-magenta));
+}
+
+.rbrwx-lower-third__accent::after {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 0;
+  width: 480px;
+  height: 8px;
+  background: linear-gradient(90deg, var(--rbrtw-navy), var(--rbrtw-purple), transparent);
+}
+
+.rbrwx-lower-third__copy {
+  position: absolute;
+  inset: 22px 35px 16px 49px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.rbrwx-lower-third__headline {
+  overflow: hidden;
+  font-size: 39px;
+  font-weight: 900;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rbrwx-lower-third__subheadline {
+  margin-top: 8px;
+  overflow: hidden;
+  color: var(--rbrtw-muted-text);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 1.7px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rbrwx-ticker {
+  display: grid;
+  grid-template-columns: minmax(100px, 12%) minmax(0, 1fr);
+  border-radius: 5px;
+}
+
+.rbrwx-ticker__label {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--rbrtw-navy), var(--rbrtw-purple), var(--rbrtw-magenta));
+  color: var(--rbrtw-text);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rbrwx-ticker__window {
+  overflow: hidden;
+}
+
+.rbrwx-ticker__track {
+  display: inline-flex;
+  align-items: center;
+  gap: 220px;
+  min-width: 100%;
+  height: 100%;
+  padding-left: 36px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.rbrwx-ticker__track.is-running {
+  animation: rbrwx-ticker-scroll 20s linear infinite;
+}
+
+.rbrwx-ticker__track span {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+}
+
+@keyframes rbrwx-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rbrwx-ticker__track.is-running { animation: none; }
+}

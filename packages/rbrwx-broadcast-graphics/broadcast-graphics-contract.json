@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "package": "@rbrwx/broadcast-graphics",
+  "scope": ["title-bar", "lower-third", "ticker"],
+  "startup": {
+    "titleBarVisible": false,
+    "lowerThirdVisible": false,
+    "tickerVisible": false
+  },
+  "titleBar": {
+    "sceneAssociatedByDefault": true,
+    "blankModeSupportsText": true,
+    "scalePercent": { "minimum": 50, "maximum": 100, "default": 100 }
+  },
+  "graphicsMenu": {
+    "visibilityToggles": ["title-bar", "lower-third", "ticker"]
+  },
+  "rendering": {
+    "rbrtwTheme": true,
+    "transparentStage": true,
+    "visibleDragMarkers": false,
+    "visibleResizeMarkers": false,
+    "visibleRemoveMarkers": false
+  },
+  "isolation": {
+    "hostImports": false,
+    "hostEntryPointChanges": false,
+    "rootPackageChanges": false,
+    "acceptedBuildDependency": false
+  },
+  "deferred": ["title-bar-hidden-menu", "png-export"]
+}

@@ -10,6 +10,7 @@ import {
 } from '../broadcast';
 import { RBRWX_INITIAL_RUNDOWN_SCENE_IDS, RBRWX_SCENE_CATALOG } from './sceneCatalog';
 import './broadcastHost.css';
+import { GraphicsHost, GraphicsOverlay, GraphicsControls } from './GraphicsHost';
 
 const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
   roads: true,
@@ -55,6 +56,7 @@ export function RbrwxBroadcastWorkspace() {
       initialRundownSceneIds={RBRWX_INITIAL_RUNDOWN_SCENE_IDS}
       onTake={handleBroadcastTake}
     >
+      <GraphicsHost>
       <main className="app-shell rbrwx-broadcast-workspace">
         <header className="topbar">
           <div className="brand-block">
@@ -76,6 +78,7 @@ export function RbrwxBroadcastWorkspace() {
         <SceneLibrary />
 
         <section className="map-stage">
+          <GraphicsOverlay />
           <BroadcastMap
             basemapMode={basemapMode}
             visibility={visibility}
@@ -97,6 +100,7 @@ export function RbrwxBroadcastWorkspace() {
         </section>
 
         <aside className="control-panel">
+          <GraphicsControls />
           <div className="panel-heading">
             <span>BASEMAP</span>
             <small>existing map control</small>
@@ -143,6 +147,7 @@ export function RbrwxBroadcastWorkspace() {
 
         <RundownDock />
       </main>
+      </GraphicsHost>
     </BroadcastProvider>
   );
 }
