@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "release": "pre-0.3.0-broadcast-base-standalone",
+  "files": {
+    ".github/workflows/broadcast-base-ci.yml": "d3cee7a274a993d9510a1b54a40f22af865f81ca1d345e88a31dd3ff4aa192f0",
+    "BROADCAST_BASE_ACCEPTANCE.md": "e3d67e95a35c919445b52278e9c443fb50230f3c148686056cf40af4a45b4a48",
+    "docs/BROADCAST_BASE_STANDALONE.md": "73cbac0434eb2d5f0cb625641d5a38b161c0e853058e165be5a0dcfe9290a91e",
+    "scripts/broadcast/broadcast-state.test.mjs": "db082fa2cfcbeb0e8c91ec7349c93dbc33fcba4897a80ead528a8fc253eae782",
+    "scripts/broadcast/compiler-api.mjs": "5268ae71930076be35e21cc490e7a35df3323dd7eda42775d4b38e8e2e13f7cc",
+    "scripts/broadcast/compiler-api.test.mjs": "da9492d1c107e651c0e3700705822e68fce5cf0f223f30471d8a62a1d98ec603",
+    "scripts/broadcast/source-imports.mjs": "bcb71b0611b899851c721b7be89856fbedbe0679aaf9dd31bb3538e136b64279",
+    "scripts/broadcast/validate-broadcast-package.mjs": "2c146ea1c7d0ea20b68d65c1ea602eb90dc6e916f3fb68562712e7e65f0f42b7",
+    "scripts/broadcast/validate-broadcast-payload.mjs": "6dbd38c268e6fc77b96cd79f63b9d2260f7213f78d0a0f732ad48e589f098e17",
+    "scripts/broadcast/vendor/typescript/LICENSE.txt": "a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47",
+    "scripts/broadcast/vendor/typescript/PROVENANCE.txt": "ebc03ac536ab64fc50e39a98e4a8076b8a7021176d13cedebbc3bc4d786dddcb",
+    "scripts/broadcast/vendor/typescript/ThirdPartyNoticeText.txt": "1af3c68039c57e539422da82a4faada506ce6d0ea6f90e0b699d02dbcdb7a90c",
+    "scripts/broadcast/vendor/typescript/typescript.cjs": "3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675",
+    "scripts/broadcast/verify-broadcast.mjs": "aa749a0db51a51f8d835b017ee11b9703539c9c933e0aeb5260e723827258ead",
+    "src/broadcast/BroadcastProvider.tsx": "0a2ebb5ed1d096218206a98c1b3c195e676720095fef343e2b54d08379a50623",
+    "src/broadcast/RundownDock.tsx": "ba914349bfb05bdeaeb0b63fc68f5345b975d1f683006266b244c1dca970f86f",
+    "src/broadcast/SceneLibrary.tsx": "edc572e1f139c1bb5018d669504a9198fafb726172c116337bc6818d4dc7f6e0",
+    "src/broadcast/broadcast.css": "c949fa966d2a81a7960aad35992ff2ff0a5ede2376c3d4d053d8b32fd587a183",
+    "src/broadcast/broadcastContract.json": "89c09ed512bc36e3f29f6018ba6afcc3a6b21b6ec9cb4f09c7a67a8635a939ea",
+    "src/broadcast/broadcastState.ts": "dff3174d7a3bb062ba194b9fddda05c1654334db33bc715605c14cf15804e23d",
+    "src/broadcast/broadcastTypes.ts": "52e4c1aa8ddea3ace074ac6df7e9e90595edd3d6f038916de8dca0d068249997",
+    "src/broadcast/index.ts": "d59a838ebcef79e3aacf30f0752eda1abb3fdaf0ebd58d7cc0283f07e8a70115",
+    "src/broadcast-host/RbrwxBroadcastWorkspace.tsx": "0ff86f23579162736bbd56965219ae316e5031bb3b1a02e585a71cd71f93fadd",
+    "src/broadcast-host/broadcastHost.css": "2231a6a56d4a38e7ce9eb7d54037ff28816ea63c9d25a267d6f905f6f42d15f0",
+    "src/broadcast-host/sceneCatalog.ts": "d74a1d43e870fe96946fb7c86ce09507335893c1e993507aa5c761e282acad39"
+  }
+}

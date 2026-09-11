@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "module": "broadcast-base",
+  "surfaces": ["library", "rundown", "preview", "program"],
+  "transportControls": ["previous", "play", "pause", "next", "take", "loop"],
+  "transitions": [
+    { "id": "cut", "defaultDurationMs": 0 },
+    { "id": "dissolve", "defaultDurationMs": 500 },
+    { "id": "fade", "defaultDurationMs": 750 }
+  ],
+  "hostBoundary": {
+    "contentKeyField": "contentKey",
+    "moduleRoot": "src/broadcast",
+    "allowedExternalImports": ["react"]
+  }
+}

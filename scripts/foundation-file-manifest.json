@@ -15,7 +15,7 @@
     "scripts/validate-map-provider.mjs": "c068fcace95fe4e89c88e071e78e512ec43383439bf01e8f777b16ae47a3057d",
     "scripts/validate-payload-manifest.mjs": "40825725fdf4156352395c71bb336cca91972e74c4757512f06ef48ae2d3c9be",
     "src/app/App.tsx": "06034046f3b7e10210d541b4f591264c1fd6f28d96da01d2ee279fc9d9cc7eb6",
-    "src/main.tsx": "fb8f89fc561664ebd534d780d662a6ad3227558810bf3f474c32211535be5e18",
+    "src/main.tsx": "8e6607c6048896dec1da6677809fbe09798a36665aa2820a139e54ef5b5605e3",
     "src/map/BroadcastMap.tsx": "579ce44d5347c0360c63f5479c4340256311a95c2ed150868cd6d9c731ed5385",
     "src/map/broadcastMapContract.json": "b4a56a7745b9f5318407dcc3d5403791efe548a51eb08ef5478bf43df16cc79e",
     "src/map/broadcastMapContract.ts": "9a0c23a3092687ca17e394977187146ffcad38ab6191ca93d75f338d7f4e6334",

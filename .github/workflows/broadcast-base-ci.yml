@@ -1,0 +1,49 @@
+name: PRE-0.3.0 Standalone Broadcast Base
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  broadcast-base:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project Rust toolchain
+        shell: pwsh
+        run: |
+          $match = Select-String -Path rust-toolchain.toml -Pattern '^\s*channel\s*=\s*"([^"]+)"'
+          if (-not $match) { throw "rust-toolchain.toml does not declare channel" }
+          $channel = $match.Matches[0].Groups[1].Value
+          rustup toolchain install $channel --profile minimal
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify existing foundation remains healthy
+        shell: pwsh
+        run: npm run verify
+
+      - name: Verify standalone Broadcast package
+        shell: pwsh
+        run: node scripts/broadcast/verify-broadcast.mjs
+
+      - name: Cargo check
+        shell: pwsh
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Build Tauri executable without installer bundle
+        shell: pwsh
+        run: npm run tauri -- build --no-bundle

@@ -1,0 +1,275 @@
+/* Broadcast Base workspace chrome. This stylesheet is owned by src/broadcast/ and
+   intentionally overlays the accepted application shell without modifying map CSS. */
+.rbrwx-broadcast-workspace .broadcast-rundown select,
+.rbrwx-broadcast-workspace .broadcast-rundown input { font: inherit; }
+
+.rbrwx-broadcast-workspace .broadcast-scene-library {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rbrwx-broadcast-workspace .scene-library__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.rbrwx-broadcast-workspace .broadcast-scene-library .scene-card {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+.rbrwx-broadcast-workspace .broadcast-scene-library .scene-card__select {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  padding: 11px 10px 31px;
+  color: inherit;
+  text-align: left;
+  border: 0;
+  background: linear-gradient(145deg, rgba(31,60,82,.55), rgba(10,24,36,.18));
+  cursor: pointer;
+}
+
+.rbrwx-broadcast-workspace .broadcast-scene-library .scene-card__add {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  padding: 4px 7px;
+  color: #a9cce2;
+  background: #0b1a27;
+  border: 1px solid #34516a;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.rbrwx-broadcast-workspace .broadcast-scene-library .scene-card__add:hover { border-color: #5a86a5; color: #e7f5ff; }
+.rbrwx-broadcast-workspace .broadcast-scene-library .rail-note { margin-bottom: 2px; }
+
+.rbrwx-broadcast-workspace .broadcast-rundown {
+  display: grid;
+  grid-template-columns: 304px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: linear-gradient(180deg, #09131d 0%, #071019 100%);
+  border-top: 1px solid #2a3d4e;
+  box-shadow: 0 -5px 18px rgba(0,0,0,.24);
+  z-index: 14;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport {
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid #26394a;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport__status {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport__status span {
+  min-width: 0;
+  padding: 6px 7px;
+  color: #c4d0d9;
+  background: #0c1a26;
+  border: 1px solid #273b4d;
+  border-radius: 3px;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport__status b {
+  display: block;
+  margin-bottom: 3px;
+  color: #6faed4;
+  font-size: 7px;
+  letter-spacing: .14em;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport__buttons {
+  display: grid;
+  grid-template-columns: 38px 45px 38px 1fr;
+  gap: 6px;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport__buttons button,
+.rbrwx-broadcast-workspace .loop-button {
+  min-height: 34px;
+  color: #b6c7d4;
+  background: #10202e;
+  border: 1px solid #31485b;
+  border-radius: 4px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transport__buttons button:hover,
+.rbrwx-broadcast-workspace .loop-button:hover { border-color: #56758e; }
+.rbrwx-broadcast-workspace .broadcast-transport__buttons .transport-primary { color: #d9f1ff; background: #15324a; border-color: #426986; }
+.rbrwx-broadcast-workspace .broadcast-transport__buttons .take-button { color: #e8f8ff; background: #174a65; border-color: #4d89a8; letter-spacing: .1em; }
+.rbrwx-broadcast-workspace .broadcast-transport__buttons button:disabled { opacity: .45; cursor: not-allowed; }
+
+.rbrwx-broadcast-workspace .broadcast-transition-row {
+  display: grid;
+  grid-template-columns: 1fr 72px 92px;
+  gap: 6px;
+  align-items: end;
+  margin-top: 9px;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transition-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #71889a;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transition-row select,
+.rbrwx-broadcast-workspace .broadcast-transition-row input {
+  width: 100%;
+  height: 29px;
+  padding: 0 6px;
+  color: #d7e4ee;
+  background: #0c1a26;
+  border: 1px solid #304659;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.rbrwx-broadcast-workspace .broadcast-transition-row input:disabled { color: #617383; opacity: .65; }
+.rbrwx-broadcast-workspace .loop-button { height: 29px; min-height: 29px; font-size: 8px; letter-spacing: .06em; }
+.rbrwx-broadcast-workspace .loop-button--on { color: #c8f5d3; border-color: #3c7c51; background: rgba(33,90,49,.3); }
+
+.rbrwx-broadcast-workspace .rundown-strip {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 9px 10px 10px;
+}
+
+.rbrwx-broadcast-workspace .rundown-strip__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex: 0 0 auto;
+  color: #91a4b5;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.rbrwx-broadcast-workspace .rundown-strip__heading small { color: #52697b; font-size: 8px; font-weight: 600; letter-spacing: .03em; }
+
+.rbrwx-broadcast-workspace .rundown-strip__items {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-top: 8px;
+}
+
+.rbrwx-broadcast-workspace .rundown-empty {
+  display: grid;
+  place-items: center;
+  min-width: 220px;
+  min-height: 108px;
+  color: #586f81;
+  border: 1px dashed #2d4354;
+  border-radius: 5px;
+  font-size: 10px;
+}
+
+.rbrwx-broadcast-workspace .rundown-card {
+  position: relative;
+  flex: 0 0 156px;
+  height: 112px;
+  color: #dbe6ef;
+  background: #0e1d2a;
+  border: 1px solid #2c4254;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.rbrwx-broadcast-workspace .rundown-card--preview { border-color: #6db6df; box-shadow: inset 0 0 0 1px rgba(109,182,223,.22); }
+.rbrwx-broadcast-workspace .rundown-card--program { border-color: #50a56b; box-shadow: inset 0 3px #50a56b; }
+
+.rbrwx-broadcast-workspace .rundown-card__select {
+  width: 100%;
+  height: 100%;
+  padding: 10px 9px 29px;
+  text-align: left;
+  color: inherit;
+  background: linear-gradient(145deg, rgba(30,57,77,.52), rgba(7,16,25,.15));
+  border: 0;
+  cursor: pointer;
+}
+
+.rbrwx-broadcast-workspace .rundown-card__number { position: absolute; top: 7px; right: 8px; color: #506779; font-size: 9px; font-weight: 900; }
+.rbrwx-broadcast-workspace .rundown-card__category { display: block; color: #69b4e2; font-size: 7px; font-weight: 900; letter-spacing: .14em; margin-bottom: 6px; }
+.rbrwx-broadcast-workspace .rundown-card strong { display: block; max-width: 118px; font-size: 11px; line-height: 1.15; }
+.rbrwx-broadcast-workspace .rundown-card small { display: block; margin-top: 5px; color: #708697; font-size: 8px; }
+
+.rbrwx-broadcast-workspace .rundown-card__flags {
+  position: absolute;
+  left: 7px;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.rbrwx-broadcast-workspace .program-flag, .rbrwx-broadcast-workspace .preview-flag {
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.rbrwx-broadcast-workspace .program-flag { color: #d7ffe1; background: rgba(45,112,64,.48); border: 1px solid #3b7b4e; }
+.rbrwx-broadcast-workspace .preview-flag { color: #d9f4ff; background: rgba(36,93,127,.48); border: 1px solid #42799a; }
+
+.rbrwx-broadcast-workspace .rundown-card__remove {
+  margin-left: auto;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  color: #91a4b2;
+  background: #0a151e;
+  border: 1px solid #304555;
+  border-radius: 3px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.rbrwx-broadcast-workspace .rundown-card__remove:disabled { opacity: .32; cursor: not-allowed; }
+
+@media (max-width: 1100px) {
+  .rbrwx-broadcast-workspace .broadcast-rundown { grid-template-columns: 272px minmax(0, 1fr); }
+  .rbrwx-broadcast-workspace .broadcast-transition-row { grid-template-columns: 1fr 64px 82px; }
+}
+
+@media (max-width: 980px) {
+  .rbrwx-broadcast-workspace .broadcast-rundown { grid-template-columns: 255px minmax(0, 1fr); }
+}

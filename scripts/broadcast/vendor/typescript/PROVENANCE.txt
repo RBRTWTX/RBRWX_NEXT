@@ -1,0 +1,6 @@
+TypeScript 5.9.3 JavaScript compiler API, Microsoft Corporation.
+Source: https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz
+lib/typescript.js copied without modification as typescript.cjs.
+SHA256: 3ae902c92cc44dace175c0e69e13a4b0899f6983c6121d76b9ab8dd5795e7675
+Used only by Broadcast validation and tests; not the host compiler or app runtime.
+License and third-party notices included.
