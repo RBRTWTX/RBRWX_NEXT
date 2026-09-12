@@ -1,7 +1,7 @@
 export type Kind = 'title' | 'lower' | 'ticker';
-export interface Scene { id: string; title: string }
+export interface Scene { id: string; title: string; weatherKeyId?: string }
 export interface Layout { x: number; y: number; scale: number }
-export interface Copy { manual: boolean; title: string; lower: string; ticker: string }
+export interface Copy { keySelection?: string; manual: boolean; title: string; lower: string; ticker: string }
 export const sizes = { title: [1872, 108], lower: [1766, 120], ticker: [1766, 56] } as const;
 export function freshCopy(): Copy { return { manual: false, title: '', lower: '', ticker: '' }; }
 export function freshLayouts(): Record<Kind, Layout> {

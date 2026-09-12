@@ -24,3 +24,5 @@ assert.doesNotMatch(ui,/from ['"].*(?:broadcast-host|\/broadcast['"]|\/map)/);
 const css = await readFile(new URL('../../src/broadcast-graphics/graphics.css',import.meta.url),'utf8');
 assert.doesNotMatch(css,/cursor:\s*(?:move|grab|nwse-resize)|is-selected|resize-handle|remove-icon/);
 console.log('Integrated graphics scene, blank text, drag, scale, startup, and isolation checks: PASS');
+
+await import('./verify-keys.mjs');

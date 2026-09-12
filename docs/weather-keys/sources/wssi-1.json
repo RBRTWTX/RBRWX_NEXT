@@ -1,0 +1,762 @@
+{
+  "currentVersion": 11.3,
+  "cimVersion": "3.3.0",
+  "id": 1,
+  "name": "Overall_Impact_Day_1",
+  "type": "Feature Layer",
+  "description": "",
+  "geometryType": "esriGeometryPolygon",
+  "sourceSpatialReference": {
+    "wkid": 102100,
+    "latestWkid": 3857,
+    "xyTolerance": 0.001,
+    "zTolerance": 0.001,
+    "mTolerance": 0.001,
+    "falseX": -20037700,
+    "falseY": -30241100,
+    "xyUnits": 10000,
+    "falseZ": -100000,
+    "zUnits": 10000,
+    "falseM": -100000,
+    "mUnits": 10000
+  },
+  "copyrightText": "",
+  "parentLayer": {
+    "id": 0,
+    "name": "Overall Impact"
+  },
+  "subLayers": [],
+  "minScale": 0,
+  "maxScale": 0,
+  "referenceScale": 0.0,
+  "drawingInfo": {
+    "renderer": {
+      "type": "uniqueValue",
+      "field1": "impact",
+      "uniqueValueGroups": [
+        {
+          "heading": "",
+          "classes": [
+            {
+              "label": "Winter Weather Area",
+              "description": "Winter Weather Area",
+              "symbol": {
+                "type": "esriSFS",
+                "style": "esriSFSSolid",
+                "color": [
+                  210,
+                  223,
+                  231,
+                  255
+                ],
+                "outline": {
+                  "type": "esriSLS",
+                  "style": "esriSLSSolid",
+                  "color": [
+                    110,
+                    110,
+                    110,
+                    255
+                  ],
+                  "width": 0.4
+                }
+              },
+              "values": [
+                [
+                  "WINTER WEATHER AREA"
+                ]
+              ]
+            },
+            {
+              "label": "Minor Impacts",
+              "description": "Minor Impacts",
+              "symbol": {
+                "type": "esriSFS",
+                "style": "esriSFSSolid",
+                "color": [
+                  250,
+                  245,
+                  163,
+                  255
+                ],
+                "outline": {
+                  "type": "esriSLS",
+                  "style": "esriSLSSolid",
+                  "color": [
+                    110,
+                    110,
+                    110,
+                    255
+                  ],
+                  "width": 0.4
+                }
+              },
+              "values": [
+                [
+                  "MINOR"
+                ]
+              ]
+            },
+            {
+              "label": "Moderate Impacts",
+              "description": "Moderate Impacts",
+              "symbol": {
+                "type": "esriSFS",
+                "style": "esriSFSSolid",
+                "color": [
+                  247,
+                  150,
+                  47,
+                  255
+                ],
+                "outline": {
+                  "type": "esriSLS",
+                  "style": "esriSLSSolid",
+                  "color": [
+                    110,
+                    110,
+                    110,
+                    255
+                  ],
+                  "width": 0.4
+                }
+              },
+              "values": [
+                [
+                  "MODERATE"
+                ]
+              ]
+            },
+            {
+              "label": "Major Impacts",
+              "description": "Major Impacts",
+              "symbol": {
+                "type": "esriSFS",
+                "style": "esriSFSSolid",
+                "color": [
+                  230,
+                  31,
+                  38,
+                  255
+                ],
+                "outline": {
+                  "type": "esriSLS",
+                  "style": "esriSLSSolid",
+                  "color": [
+                    110,
+                    110,
+                    110,
+                    255
+                  ],
+                  "width": 0.4
+                }
+              },
+              "values": [
+                [
+                  "MAJOR"
+                ]
+              ]
+            },
+            {
+              "label": "Extreme Impacts",
+              "description": "Extreme Impacts",
+              "symbol": {
+                "type": "esriSFS",
+                "style": "esriSFSSolid",
+                "color": [
+                  120,
+                  83,
+                  161,
+                  255
+                ],
+                "outline": {
+                  "type": "esriSLS",
+                  "style": "esriSLSSolid",
+                  "color": [
+                    110,
+                    110,
+                    110,
+                    255
+                  ],
+                  "width": 0.4
+                }
+              },
+              "values": [
+                [
+                  "EXTREME"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "uniqueValueInfos": [
+        {
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [
+              210,
+              223,
+              231,
+              255
+            ],
+            "outline": {
+              "type": "esriSLS",
+              "style": "esriSLSSolid",
+              "color": [
+                110,
+                110,
+                110,
+                255
+              ],
+              "width": 0.4
+            }
+          },
+          "value": "WINTER WEATHER AREA",
+          "label": "Winter Weather Area"
+        },
+        {
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [
+              250,
+              245,
+              163,
+              255
+            ],
+            "outline": {
+              "type": "esriSLS",
+              "style": "esriSLSSolid",
+              "color": [
+                110,
+                110,
+                110,
+                255
+              ],
+              "width": 0.4
+            }
+          },
+          "value": "MINOR",
+          "label": "Minor Impacts"
+        },
+        {
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [
+              247,
+              150,
+              47,
+              255
+            ],
+            "outline": {
+              "type": "esriSLS",
+              "style": "esriSLSSolid",
+              "color": [
+                110,
+                110,
+                110,
+                255
+              ],
+              "width": 0.4
+            }
+          },
+          "value": "MODERATE",
+          "label": "Moderate Impacts"
+        },
+        {
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [
+              230,
+              31,
+              38,
+              255
+            ],
+            "outline": {
+              "type": "esriSLS",
+              "style": "esriSLSSolid",
+              "color": [
+                110,
+                110,
+                110,
+                255
+              ],
+              "width": 0.4
+            }
+          },
+          "value": "MAJOR",
+          "label": "Major Impacts"
+        },
+        {
+          "symbol": {
+            "type": "esriSFS",
+            "style": "esriSFSSolid",
+            "color": [
+              120,
+              83,
+              161,
+              255
+            ],
+            "outline": {
+              "type": "esriSLS",
+              "style": "esriSLSSolid",
+              "color": [
+                110,
+                110,
+                110,
+                255
+              ],
+              "width": 0.4
+            }
+          },
+          "value": "EXTREME",
+          "label": "Extreme Impacts"
+        }
+      ],
+      "fieldDelimiter": ",",
+      "authoringInfo": {
+        "colorRamp": {
+          "type": "multipart",
+          "colorRamps": [
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                210,
+                210,
+                252,
+                255
+              ],
+              "toColor": [
+                210,
+                210,
+                252,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                179,
+                252,
+                184,
+                255
+              ],
+              "toColor": [
+                179,
+                252,
+                184,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                252,
+                221,
+                189,
+                255
+              ],
+              "toColor": [
+                252,
+                221,
+                189,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                184,
+                249,
+                252,
+                255
+              ],
+              "toColor": [
+                184,
+                249,
+                252,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                252,
+                179,
+                207,
+                255
+              ],
+              "toColor": [
+                252,
+                179,
+                207,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                245,
+                252,
+                182,
+                255
+              ],
+              "toColor": [
+                245,
+                252,
+                182,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                223,
+                179,
+                252,
+                255
+              ],
+              "toColor": [
+                223,
+                179,
+                252,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                215,
+                252,
+                221,
+                255
+              ],
+              "toColor": [
+                215,
+                252,
+                221,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                252,
+                210,
+                212,
+                255
+              ],
+              "toColor": [
+                252,
+                210,
+                212,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                252,
+                204,
+                252,
+                255
+              ],
+              "toColor": [
+                252,
+                204,
+                252,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                212,
+                232,
+                252,
+                255
+              ],
+              "toColor": [
+                212,
+                232,
+                252,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                179,
+                179,
+                252,
+                255
+              ],
+              "toColor": [
+                179,
+                179,
+                252,
+                255
+              ]
+            },
+            {
+              "type": "algorithmic",
+              "algorithm": "esriCIELabAlgorithm",
+              "fromColor": [
+                250,
+                252,
+                210,
+                255
+              ],
+              "toColor": [
+                250,
+                252,
+                210,
+                255
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "scaleSymbols": true,
+    "transparency": 0,
+    "labelingInfo": null
+  },
+  "defaultVisibility": false,
+  "extent": {
+    "xmin": -124.76571492581091,
+    "ymin": 25.806675022295106,
+    "xmax": -66.91802558937074,
+    "ymax": 49.40277440994015,
+    "spatialReference": {
+      "wkid": 4326,
+      "latestWkid": 4326,
+      "xyTolerance": 8.983152841195215e-09,
+      "zTolerance": 0.001,
+      "mTolerance": 0.001,
+      "falseX": -400,
+      "falseY": -400,
+      "xyUnits": 999999999.9999999,
+      "falseZ": -100000,
+      "zUnits": 10000,
+      "falseM": -100000,
+      "mUnits": 10000
+    }
+  },
+  "hasAttachments": false,
+  "htmlPopupType": "esriServerHTMLPopupTypeAsHTMLText",
+  "displayField": "product",
+  "typeIdField": null,
+  "subtypeFieldName": null,
+  "subtypeField": null,
+  "defaultSubtypeCode": null,
+  "fields": [
+    {
+      "name": "objectid",
+      "type": "esriFieldTypeOID",
+      "alias": "FID",
+      "domain": null
+    },
+    {
+      "name": "product",
+      "type": "esriFieldTypeString",
+      "alias": "Product",
+      "length": 40,
+      "domain": null
+    },
+    {
+      "name": "valid_time",
+      "type": "esriFieldTypeString",
+      "alias": "Valid Time",
+      "length": 30,
+      "domain": null
+    },
+    {
+      "name": "component",
+      "type": "esriFieldTypeString",
+      "alias": "Component",
+      "length": 20,
+      "domain": null
+    },
+    {
+      "name": "impact",
+      "type": "esriFieldTypeString",
+      "alias": "Impact",
+      "length": 30,
+      "domain": null
+    },
+    {
+      "name": "issue_time",
+      "type": "esriFieldTypeString",
+      "alias": "Issue Time",
+      "length": 30,
+      "domain": null
+    },
+    {
+      "name": "start_time",
+      "type": "esriFieldTypeString",
+      "alias": "Start Time",
+      "length": 30,
+      "domain": null
+    },
+    {
+      "name": "end_time",
+      "type": "esriFieldTypeString",
+      "alias": "Start Time",
+      "length": 30,
+      "domain": null
+    },
+    {
+      "name": "idp_source",
+      "type": "esriFieldTypeString",
+      "alias": "Source",
+      "length": 50,
+      "domain": null
+    },
+    {
+      "name": "idp_filedate",
+      "type": "esriFieldTypeDate",
+      "alias": "GIS File Date",
+      "length": 8,
+      "domain": null
+    },
+    {
+      "name": "idp_ingestdate",
+      "type": "esriFieldTypeDate",
+      "alias": "GIS Ingest Date",
+      "length": 8,
+      "domain": null
+    },
+    {
+      "name": "shape",
+      "type": "esriFieldTypeGeometry",
+      "alias": "shape",
+      "domain": null
+    },
+    {
+      "name": "st_area(shape)",
+      "type": "esriFieldTypeDouble",
+      "alias": "st_area(shape)",
+      "domain": null
+    },
+    {
+      "name": "st_perimeter(shape)",
+      "type": "esriFieldTypeDouble",
+      "alias": "st_perimeter(shape)",
+      "domain": null
+    }
+  ],
+  "geometryField": {
+    "name": "shape",
+    "type": "esriFieldTypeGeometry",
+    "alias": "shape"
+  },
+  "indexes": [
+    {
+      "name": "r1277_sde_rowid_uk",
+      "fields": "objectid",
+      "isAscending": true,
+      "isUnique": true,
+      "description": ""
+    },
+    {
+      "name": "a904_ix1",
+      "fields": "shape",
+      "isAscending": true,
+      "isUnique": true,
+      "description": ""
+    }
+  ],
+  "subtypes": [],
+  "relationships": [],
+  "canModifyLayer": true,
+  "canScaleSymbols": false,
+  "hasLabels": false,
+  "capabilities": "Map,Query,Data",
+  "maxRecordCount": 2000,
+  "supportsStatistics": true,
+  "supportsExceedsLimitStatistics": true,
+  "supportsAdvancedQueries": true,
+  "supportedQueryFormats": "JSON, geoJSON, PBF",
+  "isDataVersioned": false,
+  "ownershipBasedAccessControlForFeatures": {
+    "allowOthersToQuery": true
+  },
+  "useStandardizedQueries": true,
+  "supportedSpatialRelationships": [
+    "esriSpatialRelIntersects",
+    "esriSpatialRelContains",
+    "esriSpatialRelCrosses",
+    "esriSpatialRelEnvelopeIntersects",
+    "esriSpatialRelIndexIntersects",
+    "esriSpatialRelOverlaps",
+    "esriSpatialRelTouches",
+    "esriSpatialRelWithin",
+    "esriSpatialRelRelation"
+  ],
+  "advancedQueryCapabilities": {
+    "useStandardizedQueries": true,
+    "supportsStatistics": true,
+    "supportsPercentileStatistics": true,
+    "supportsHavingClause": true,
+    "supportsOrderBy": true,
+    "supportsDistinct": true,
+    "supportsCountDistinct": true,
+    "supportsAdvancedQueryRelated": true,
+    "supportsQueryRelatedPagination": true,
+    "supportsPagination": true,
+    "supportsLod": false,
+    "supportsQueryWithLodSR": false,
+    "supportsTrueCurve": true,
+    "supportsQueryWithDatumTransformation": true,
+    "supportsReturningQueryExtent": true,
+    "supportsQueryWithDistance": true,
+    "supportsSqlExpression": true,
+    "supportsTimeRelation": true,
+    "supportsSqlFormat": false,
+    "supportsQueryAnalytic": true,
+    "supportsCurrentUserQueries": true
+  },
+  "supportsDatumTransformation": true,
+  "advancedQueryAnalyticCapabilities": {
+    "supportsLinearRegression": true,
+    "supportsAsync": false,
+    "supportsPercentileAnalytic": false
+  },
+  "dateFieldsTimeReference": null,
+  "preferredTimeReference": null,
+  "datesInUnknownTimezone": false,
+  "hasGeometryProperties": true,
+  "geometryProperties": {
+    "shapeAreaFieldName": "st_area(shape)",
+    "shapeLengthFieldName": "st_perimeter(shape)",
+    "units": "esriMeters",
+    "mapUnits": {
+      "uwkid": 9001
+    }
+  },
+  "hasMetadata": true,
+  "isDataArchived": false,
+  "archivingInfo": {
+    "supportsQueryWithHistoricMoment": false,
+    "startArchivingMoment": -1
+  },
+  "supportsCoordinatesQuantization": true,
+  "supportsDynamicLegends": true
+}

@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
 import { changeLayout, constrain, freshCopy, freshLayouts, sizes, titleText, type Copy, type Kind, type Layout, type Scene } from './state';
 import './graphics.css';
+import { KeysMenu, TitleKey } from './keys/Keys';
+import { resolveWeatherKey } from './keys/model';
 interface Model {
   scene: Scene | null; copy: Copy; edit: (patch: Partial<Copy>) => void;
   visible: Record<Kind, boolean>; toggle: (kind: Kind) => void;
@@ -35,6 +37,7 @@ function Text({ value, commit, scrolling = false }: { value: string; commit: (te
 }
 function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
   const { scene, copy, edit, layouts, position } = useGraphics();
+  const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId) : undefined;
   const layout = layouts[kind];
   const gesture = useRef<{ x: number; y: number; start: Layout; resize: boolean; id: number } | null>(null);
   const [width, height] = sizes[kind];
@@ -44,13 +47,14 @@ function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
     gesture.current = { x: event.clientX, y: event.clientY, start: { ...layout }, resize: box.right - event.clientX < 14 && box.bottom - event.clientY < 14, id: event.pointerId };
     event.stopPropagation(); (event.target as HTMLElement).setPointerCapture(event.pointerId);
   }
-  return <div className={`wxg-bar wxg-${kind}`} data-graphic={kind} style={{ left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})` }}
+  return <div className={`wxg-bar wxg-${kind}${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} style={{ left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})` }}
     onPointerDown={down}
     onPointerMove={event => { const g = gesture.current; if (!g || g.id !== event.pointerId) return; event.stopPropagation(); position(kind, changeLayout(kind, g.start, (event.clientX - g.x) / viewScale, (event.clientY - g.y) / viewScale, g.resize)); }}
     onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
     onPointerCancel={() => { gesture.current = null; }} onLostPointerCapture={() => { gesture.current = null; }}>
     <Text scrolling={kind === 'ticker'} key={`${scene?.id ?? 'startup'}:${kind}`} value={kind === 'title' ? titleText(scene, copy) : copy[kind]}
       commit={text => edit(kind === 'title' ? { manual: true, title: text } : { [kind]: text })} />
+    {weatherKey && <TitleKey value={weatherKey} />}
   </div>;
 }
 export function GraphicsOverlay() {
@@ -73,6 +77,7 @@ export function GraphicsControls() {
     <label>Title text<select aria-label="Title text" value={copy.manual ? 'blank' : 'scene'} onChange={event => edit(event.target.value === 'blank' ? { manual: true, title: '' } : { manual: false })}><option value="scene">Match scene</option><option value="blank">Blank / add text</option></select></label>
     <label>Title<input value={titleText(scene, copy)} onChange={event => edit({ manual: true, title: event.target.value })} /></label>
     <label>Title bar size<input aria-label="Title bar size" type="range" min="25" max="100" value={Math.round(layouts.title.scale * 100)} onChange={event => position('title', { ...layouts.title, scale: Number(event.target.value) / 100 })} /></label>
+    <KeysMenu selection={copy.keySelection ?? 'auto'} weatherKeyId={scene?.weatherKeyId} disabled={!scene} choose={keySelection => { edit({ keySelection }); if (keySelection !== 'none' && resolveWeatherKey(keySelection, scene?.weatherKeyId) && !visible.title) toggle('title'); }} />
     {visible.lower && <label>Lower third text<input value={copy.lower} onChange={event => edit({ lower: event.target.value })} /></label>}
     {visible.ticker && <label>Ticker text<input value={copy.ticker} onChange={event => edit({ ticker: event.target.value })} /></label>}
   </section>;

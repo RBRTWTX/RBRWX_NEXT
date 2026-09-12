@@ -22,7 +22,7 @@
     "src/broadcast/broadcast.css": "c949fa966d2a81a7960aad35992ff2ff0a5ede2376c3d4d053d8b32fd587a183",
     "src/broadcast/broadcastContract.json": "89c09ed512bc36e3f29f6018ba6afcc3a6b21b6ec9cb4f09c7a67a8635a939ea",
     "src/broadcast/broadcastState.ts": "dff3174d7a3bb062ba194b9fddda05c1654334db33bc715605c14cf15804e23d",
-    "src/broadcast/broadcastTypes.ts": "52e4c1aa8ddea3ace074ac6df7e9e90595edd3d6f038916de8dca0d068249997",
+    "src/broadcast/broadcastTypes.ts": "c72abcb714767e8f6ab00cca8e2e10d855308833e559f6fe26cc063d5978fc60",
     "src/broadcast/index.ts": "d59a838ebcef79e3aacf30f0752eda1abb3fdaf0ebd58d7cc0283f07e8a70115",
     "src/broadcast-host/RbrwxBroadcastWorkspace.tsx": "b7c7884c878b1d546f8deb567f476cb6c8ff5cd16b4c4af078c85beb7c188c14",
     "src/broadcast-host/broadcastHost.css": "2231a6a56d4a38e7ce9eb7d54037ff28816ea63c9d25a267d6f905f6f42d15f0",

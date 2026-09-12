@@ -7,6 +7,8 @@ export interface BroadcastSceneDefinition {
   subtitle: string;
   category: string;
   contentKey: string;
+  /** Exact palette identifier used by the scene renderer; omitted for basemaps. */
+  weatherKeyId?: string;
   defaultHoldMs: number;
 }
 

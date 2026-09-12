@@ -1,0 +1,85 @@
+{
+  "retrieved": "2026-09-12",
+  "sources": [
+    {
+      "file": "spc-1.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/1?f=pjson",
+      "sha256": "516747ff8ec784fcddb3cb2b2b92ca61f4724a771e2beb9a60d0e877e29e5acd"
+    },
+    {
+      "file": "spc-3.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/3?f=pjson",
+      "sha256": "d5671a0755ce82dfbf60ce0da1c2eaa2a79a8d1757713c7bf51e88343b6e841d"
+    },
+    {
+      "file": "spc-5.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/5?f=pjson",
+      "sha256": "fd56ad7267db4746c3f6aa094f933e3579f6bcbfaa97a1f28ae3539df38d3bc1"
+    },
+    {
+      "file": "spc-7.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/7?f=pjson",
+      "sha256": "eb17b4af65a8de592f911ca02f3b971f37b849fc0b7ace28e2fbdf7bf87a0c9b"
+    },
+    {
+      "file": "spc-19.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/19?f=pjson",
+      "sha256": "97bb71043f211dfd56214ab95327c4ef0d3b42a3a2aa6be7a031fe18fc3e71c9"
+    },
+    {
+      "file": "spc-21.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer/21?f=pjson",
+      "sha256": "49c52f080e6fbdee5920ab56a0035e8725df83c7d2aa21677b4c0efd5a2b2a16"
+    },
+    {
+      "file": "qpf-1.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/precip/wpc_qpf/MapServer/1?f=pjson",
+      "sha256": "23e00bcd4f7af9031f24300becaa313fd07d433d3ef2f52f690970cede9da15f"
+    },
+    {
+      "file": "fire-1.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/fire_weather/SPC_firewx/MapServer/1?f=pjson",
+      "sha256": "aba4d284890b8fdb909e9e2b7e2c16ad0cf6973d694dee8651733e8ef80449ae"
+    },
+    {
+      "file": "fire-2.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/fire_weather/SPC_firewx/MapServer/2?f=pjson",
+      "sha256": "2add4b501751897a8f7cdacbd232211531a61ec0125de5ffed40c33e01da7690"
+    },
+    {
+      "file": "wssi-1.json",
+      "url": "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/wpc_wssi/MapServer/1?f=pjson",
+      "sha256": "49736a54eeb29af2857072eecfaf28eefaccaf86a1936104de9469aa0f182834"
+    },
+    {
+      "file": "temp-legend.json",
+      "url": "https://mapservices.weather.noaa.gov/raster/rest/services/NDFD/NDFD_temp/MapServer/legend?f=pjson",
+      "sha256": "d9c96b7d586063a925104deb91ff6b5852ca129c1c3f05d1c506f366d70767cc"
+    },
+    {
+      "file": "temp-legend.json",
+      "url": "https://mapservices.weather.noaa.gov/raster/rest/services/NDFD/NDFD_temp/MapServer/legend?f=pjson",
+      "sha256": "d9c96b7d586063a925104deb91ff6b5852ca129c1c3f05d1c506f366d70767cc"
+    },
+    {
+      "file": "temp-legend.json",
+      "url": "https://mapservices.weather.noaa.gov/raster/rest/services/NDFD/NDFD_temp/MapServer/legend?f=pjson",
+      "sha256": "d9c96b7d586063a925104deb91ff6b5852ca129c1c3f05d1c506f366d70767cc"
+    },
+    {
+      "file": "temp-legend.json",
+      "url": "https://mapservices.weather.noaa.gov/raster/rest/services/NDFD/NDFD_temp/MapServer/legend?f=pjson",
+      "sha256": "d9c96b7d586063a925104deb91ff6b5852ca129c1c3f05d1c506f366d70767cc"
+    },
+    {
+      "file": "temp-legend.json",
+      "url": "https://mapservices.weather.noaa.gov/raster/rest/services/NDFD/NDFD_temp/MapServer/legend?f=pjson",
+      "sha256": "d9c96b7d586063a925104deb91ff6b5852ca129c1c3f05d1c506f366d70767cc"
+    },
+    {
+      "file": "rain-legend.json",
+      "url": "https://mapservices.weather.noaa.gov/raster/rest/services/obs/rfc_qpe/MapServer/legend?f=pjson",
+      "sha256": "285f3c599efa01bdfea2358376e1e265d265d2015295d3fb57d42a494f6aa9c2"
+    }
+  ]
+}
