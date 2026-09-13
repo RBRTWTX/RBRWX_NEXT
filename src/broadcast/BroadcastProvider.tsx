@@ -40,6 +40,7 @@ export interface BroadcastRuntime {
   removeItem: (itemId: BroadcastRundownItemId) => void;
   moveItem: (itemId: BroadcastRundownItemId, beforeItemId: BroadcastRundownItemId | null) => void;
   takePreview: () => void;
+  takeScene: (sceneId: BroadcastSceneId) => void;
   previous: () => void;
   next: () => void;
   play: () => void;
@@ -140,6 +141,18 @@ export function BroadcastProvider({ scenes, initialRundownSceneIds, onTake, chil
     selectPreview: (itemId) => dispatch({ type: 'select-preview', itemId }),
     removeItem: (itemId) => dispatch({ type: 'remove-item', itemId }),
     moveItem: (itemId, beforeItemId) => dispatch({ type: 'move-item', itemId, beforeItemId }),
+    takeScene: (sceneId) => {
+      const scene = sceneMap.get(sceneId); if (!scene) return;
+      const current = stateRef.current;
+      const existing = current.rundown.find(item => item.sceneId === sceneId);
+      if (existing) { takeItem(existing.id, 'take'); return; }
+      const action = { type: 'add-scene' as const, sceneId, holdMs: scene.defaultHoldMs };
+      const added = broadcastReducer(current, action);
+      const item = added.rundown[added.rundown.length - 1]; if (!item) return;
+      dispatch(action); dispatch({ type: 'set-program', itemId: item.id });
+      stateRef.current = broadcastReducer(added, { type: 'set-program', itemId: item.id });
+      onTake?.({ source: 'take', fromItemId: current.programItemId, toItemId: item.id, fromScene: sceneForItem(current.programItemId), toScene: scene, transition: current.transition });
+    },
     takePreview: () => {
       const itemId = stateRef.current.previewItemId;
       if (itemId) takeItem(itemId, 'take');

@@ -28,6 +28,7 @@ setWorkerUrl(workerUrl);
 export type MapHealth = 'starting' | 'ready' | 'degraded' | 'failed';
 
 interface BroadcastMapProps {
+  onMapReady?: (map: MapLibreMap) => void | (() => void);
   basemapMode: BroadcastBasemapMode;
   visibility: Record<BroadcastLayerGroup, boolean>;
   onHealthChange: (health: MapHealth, message: string) => void;
@@ -55,7 +56,9 @@ function applyBasemapMode(map: MapLibreMap, activeMode: BroadcastBasemapMode): v
   }
 }
 
-export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCameraChange }: BroadcastMapProps) {
+export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCameraChange, onMapReady }: BroadcastMapProps) {
+  const mapReadyRef = useRef(onMapReady);
+  mapReadyRef.current = onMapReady;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const basemapModeRef = useRef(basemapMode);
@@ -79,6 +82,7 @@ export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCamera
     const problems = new Map<string, string>();
     let hardFailure: string | null = null;
     let styleLoaded = false;
+    let releaseExtension: void | (() => void);
     let initialCountyResolved = false;
     let countyAbort: AbortController | null = null;
     let lastCountyKey = '';
@@ -193,6 +197,7 @@ export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCamera
 
       styleLoaded = true;
       setReady(true);
+      releaseExtension = mapReadyRef.current?.(map);
       void refreshCounties();
     });
 
@@ -214,6 +219,7 @@ export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCamera
     return () => {
       countyAbort?.abort();
       resizeObserver.disconnect();
+      releaseExtension?.();
       map.remove();
       mapRef.current = null;
       setReady(false);

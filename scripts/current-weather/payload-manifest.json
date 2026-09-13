@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "release": "current-weather-public-noaa-v3",
+  "files": {
+    "src/current-weather/CurrentWeather.tsx": "bcc51ac297da5e63c1be178543439091ed67412904c4df66d10c447374bc2ad0",
+    "src/current-weather/controller.ts": "5a56b9dc973126e2ea120d2df2043cf1f924d2223d92c3ba18177722b3783759",
+    "src/current-weather/model.ts": "cc7af6f6f0d4736ca05888e9ebe3cddd8da6296dacb9580e57a2f89479048a25",
+    "src/current-weather/observations.ts": "9919930f990f4daba1d2a778e53d4ef225cd9df24af30f5b31e829154f2c173e",
+    "src/current-weather/palettes.json": "a999adae937fa2e3779f0cdbaa06122c905cfa009b89672c018f0254feafcf7b",
+    "src/current-weather/public-config.ts": "26a9226590c3f0d920f2d3052b43ce9dd22d7c72ada4ce05b114234872cb7104",
+    "src/current-weather/public-imagery.ts": "6090657e3eefa266676f080b51db2697f0b9a8f65e2acfad394d580973391ad6",
+    "src/current-weather/weather.css": "ed9279767b28e5686618f9b1a97643ef17fd6da46c380547cb6040d9eae4b316",
+    "scripts/current-weather/fixtures/radar-legend.json": "c6bae0ac7337db3b3125bbc682862bae89edf3a46667dde395b2e34c534d68ba",
+    "scripts/current-weather/fixtures/satellite-legend.json": "8a0581d5a9c55f9ad40c59ac7914a0d9380007b97c4ebeec916e31aa5a5df675",
+    "scripts/current-weather/provider.mjs": "fd74ba659dc1e1f7590202b090c4e4360d51f43d2c35a58bbf86dc4107fecf29",
+    "scripts/current-weather/verify.mjs": "d70fdeee3ecee03b7a8833ed69addc07897347ef15f0c916603b6d8a16e852bb",
+    "docs/current-weather/PUBLIC_SOURCES.md": "871c94af0cf278fe6b5a3d6301d11db00e17aa66f3e4266ff919d516ac1dc4dc",
+    "docs/current-weather/README.md": "24172b9f3375dc507b904185b0b2117bcad982a074178509db3cbeae55ac9b47"
+  }
+}

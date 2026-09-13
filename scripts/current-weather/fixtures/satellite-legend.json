@@ -1,0 +1,22 @@
+{"Legend": [{
+  "layerName": "goes_longwave_imagery",
+  "title": "GOES East & West Satellite Longwave Imagery",
+  "rules": [{"symbolizers": [{"Raster":   {
+    "colormap":     {
+      "entries":       [
+                {
+          "label": "0",
+          "quantity": "0",
+          "color": "#FFFFFF"
+        },
+                {
+          "label": "255",
+          "quantity": "255",
+          "color": "#000000"
+        }
+      ],
+      "type": "ramp"
+    },
+    "opacity": "1.0"
+  }}]}]
+}]}

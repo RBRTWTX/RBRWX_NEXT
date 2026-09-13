@@ -1,6 +1,10 @@
 import { binColor, resolveWeatherKey, weatherKeys, type WeatherKey } from './model';
 /** The title and its key share one transform and one font; no overlay controls. */
 export function KeyStrip({ value, thumbnail = false }: { value: WeatherKey; thumbnail?: boolean }) {
+  if (value.gradient) return <div className={`wxg-continuous-key${thumbnail ? ' wxg-key-thumbnail' : ''}`} aria-label={`${value.name} (${value.unit})`}>
+    <div className="wxg-key-color" style={{ background: value.gradient }} />
+    {!thumbnail && <div className="wxg-key-ticks">{value.ticks?.map(tick => <span key={tick.position} style={{ left: `${tick.position}%` }}>{tick.label}</span>)}</div>}
+  </div>;
   return <div className={`wxg-key-strip${thumbnail ? ' wxg-key-thumbnail' : ''}`} aria-label={`${value.name}${value.unit ? ` (${value.unit})` : ''}`}>
     {value.bins.map((bin, index) => <div className="wxg-key-bin" key={`${bin.value}:${index}`} title={bin.label}>
       <span className="wxg-key-color" style={{ backgroundColor: binColor(bin) }} />
@@ -14,16 +18,16 @@ export function TitleKey({ value }: { value: WeatherKey }) {
     <KeyStrip value={value} />
   </div>;
 }
-export function KeysMenu({ selection, weatherKeyId, disabled, choose }: {
-  selection: string; weatherKeyId?: string; disabled: boolean; choose: (id: string) => void;
+export function KeysMenu({ selection, weatherKeyId, disabled, choose, extraKeys = [] }: {
+  extraKeys?: readonly WeatherKey[]; selection: string; weatherKeyId?: string; disabled: boolean; choose: (id: string) => void;
 }) {
-  const automatic = resolveWeatherKey('auto', weatherKeyId);
+  const automatic = resolveWeatherKey('auto', weatherKeyId, extraKeys);
   return <details className="wxg-keys-menu">
     <summary>Keys</summary>
     <div className="wxg-key-options" role="group" aria-label="Weather color keys">
       <button type="button" disabled={disabled} aria-pressed={selection === 'auto'} onClick={() => choose('auto')}>Match scene · {automatic?.name ?? 'No weather key'}</button>
       <button type="button" disabled={disabled} aria-pressed={selection === 'none'} onClick={() => choose('none')}>None</button>
-      {weatherKeys.map(key => <button type="button" disabled={disabled} key={key.id} aria-pressed={selection === key.id} onClick={() => choose(key.id)}>
+      {[...weatherKeys,...extraKeys].map(key => <button type="button" disabled={disabled} key={key.id} aria-pressed={selection === key.id} onClick={() => choose(key.id)}>
         <span>{key.name}{key.unit && ` · ${key.unit}`}</span><KeyStrip value={key} thumbnail />
       </button>)}
     </div>

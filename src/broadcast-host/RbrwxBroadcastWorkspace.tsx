@@ -11,6 +11,7 @@ import {
 import { RBRWX_INITIAL_RUNDOWN_SCENE_IDS, RBRWX_SCENE_CATALOG } from './sceneCatalog';
 import './broadcastHost.css';
 import { GraphicsHost, GraphicsOverlay, GraphicsControls } from './GraphicsHost';
+import { CurrentSceneHeading, CurrentWeatherHost, CurrentProductSelector, WeatherControls, WeatherPlayback, WeatherStatus, WeatherMapConnection } from './CurrentWeatherHost';
 
 const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
   roads: true,
@@ -29,6 +30,7 @@ const healthLabel: Record<MapHealth, string> = {
 function contentKeyToBasemapMode(contentKey: string): BroadcastBasemapMode | null {
   if (contentKey === 'map.broadcast') return 'broadcast';
   if (contentKey === 'map.satellite') return 'satellite';
+  if (contentKey.startsWith('current.')) return 'broadcast';
   return null;
 }
 
@@ -56,6 +58,7 @@ export function RbrwxBroadcastWorkspace() {
       initialRundownSceneIds={RBRWX_INITIAL_RUNDOWN_SCENE_IDS}
       onTake={handleBroadcastTake}
     >
+      <CurrentWeatherHost>
       <GraphicsHost>
       <main className="app-shell rbrwx-broadcast-workspace">
         <header className="topbar">
@@ -67,6 +70,7 @@ export function RbrwxBroadcastWorkspace() {
             </div>
           </div>
 
+          <WeatherPlayback />
           <div className="topbar-status">
             <span className={`health health--${health}`}>{healthLabel[health]}</span>
             <span>ZOOM {zoomLabel}</span>
@@ -79,7 +83,8 @@ export function RbrwxBroadcastWorkspace() {
 
         <section className="map-stage">
           <GraphicsOverlay />
-          <BroadcastMap
+          <WeatherMapConnection>{connect => <BroadcastMap
+            onMapReady={connect}
             basemapMode={basemapMode}
             visibility={visibility}
             onHealthChange={(nextHealth, message) => {
@@ -88,18 +93,20 @@ export function RbrwxBroadcastWorkspace() {
               void invoke('report_map_health', { health: nextHealth, message }).catch(() => undefined);
             }}
             onCameraChange={setCamera}
-          />
+          />}</WeatherMapConnection>
+          <WeatherStatus />
 
           <div className="map-title-card">
             <span className="map-title-card__kicker">RBRWX NEXT</span>
-            <strong>{basemapMode === 'satellite' ? 'Satellite Basemap' : 'Broadcast Map Foundation'}</strong>
-            <span>{basemapMode === 'satellite' ? 'Reference imagery basemap' : 'South-Central Texas'}</span>
+            <CurrentSceneHeading satellite={basemapMode === 'satellite'} />
           </div>
 
           <div className="map-health-message">{healthMessage}</div>
         </section>
 
         <aside className="control-panel">
+          <CurrentProductSelector />
+          <WeatherControls />
           <GraphicsControls />
           <div className="panel-heading">
             <span>BASEMAP</span>
@@ -148,6 +155,7 @@ export function RbrwxBroadcastWorkspace() {
         <RundownDock />
       </main>
       </GraphicsHost>
+      </CurrentWeatherHost>
     </BroadcastProvider>
   );
 }

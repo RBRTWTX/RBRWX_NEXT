@@ -23,3 +23,5 @@ run('npm', ['run', 'build']);
 console.log('RBRWX standalone Broadcast verification: PASS');
 
 run('node', ['scripts/graphics/verify.mjs']);
+
+run('node', ['scripts/current-weather/verify.mjs']);

@@ -2,21 +2,21 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode,
 import { changeLayout, constrain, freshCopy, freshLayouts, sizes, titleText, type Copy, type Kind, type Layout, type Scene } from './state';
 import './graphics.css';
 import { KeysMenu, TitleKey } from './keys/Keys';
-import { resolveWeatherKey } from './keys/model';
+import { resolveWeatherKey, type WeatherKey } from './keys/model';
 interface Model {
-  scene: Scene | null; copy: Copy; edit: (patch: Partial<Copy>) => void;
+  extraKeys: readonly WeatherKey[]; scene: Scene | null; copy: Copy; edit: (patch: Partial<Copy>) => void;
   visible: Record<Kind, boolean>; toggle: (kind: Kind) => void;
   layouts: Record<Kind, Layout>; position: (kind: Kind, layout: Layout) => void;
 }
 const Context = createContext<Model | null>(null);
 function useGraphics() { const value = useContext(Context); if (!value) throw new Error('Graphics provider missing'); return value; }
-export function GraphicsProvider({ scene, children }: { scene: Scene | null; children: ReactNode }) {
+export function GraphicsProvider({ scene, children, extraKeys = [] }: { scene: Scene | null; children: ReactNode; extraKeys?: readonly WeatherKey[] }) {
   const [copies, setCopies] = useState<Record<string, Copy>>({});
   const [visible, setVisible] = useState({ title: false, lower: false, ticker: false });
   const [layouts, setLayouts] = useState(freshLayouts);
   const id = scene?.id ?? 'startup';
   const copy = copies[id] ?? freshCopy();
-  return <Context.Provider value={{ scene, copy, visible, layouts,
+  return <Context.Provider value={{ scene, copy, visible, layouts, extraKeys,
     edit: patch => setCopies(old => ({ ...old, [id]: { ...(old[id] ?? freshCopy()), ...patch } })),
     toggle: kind => setVisible(old => ({ ...old, [kind]: !old[kind] })),
     position: (kind, layout) => setLayouts(old => ({ ...old, [kind]: constrain(kind, layout) })),
@@ -36,8 +36,8 @@ function Text({ value, commit, scrolling = false }: { value: string; commit: (te
   >{editing ? undefined : scrolling ? <span className="wxg-crawl">{value}</span> : value}</div>;
 }
 function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
-  const { scene, copy, edit, layouts, position } = useGraphics();
-  const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId) : undefined;
+  const { scene, copy, edit, layouts, position, extraKeys } = useGraphics();
+  const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId, extraKeys) : undefined;
   const layout = layouts[kind];
   const gesture = useRef<{ x: number; y: number; start: Layout; resize: boolean; id: number } | null>(null);
   const [width, height] = sizes[kind];
@@ -70,14 +70,14 @@ export function GraphicsOverlay() {
   </div>;
 }
 export function GraphicsControls() {
-  const { scene, copy, edit, visible, toggle, layouts, position } = useGraphics();
+  const { scene, copy, edit, visible, toggle, layouts, position, extraKeys } = useGraphics();
   return <section className="wxg-menu" aria-label="Graphics">
     <div className="panel-heading">GRAPHICS</div>
     {(['title', 'lower', 'ticker'] as Kind[]).map(kind => <label key={kind} className="wxg-toggle"><span>{kind === 'title' ? 'Title bar' : kind === 'lower' ? 'Lower third' : 'Ticker'}</span><input type="checkbox" checked={visible[kind]} onChange={() => toggle(kind)} /></label>)}
     <label>Title text<select aria-label="Title text" value={copy.manual ? 'blank' : 'scene'} onChange={event => edit(event.target.value === 'blank' ? { manual: true, title: '' } : { manual: false })}><option value="scene">Match scene</option><option value="blank">Blank / add text</option></select></label>
     <label>Title<input value={titleText(scene, copy)} onChange={event => edit({ manual: true, title: event.target.value })} /></label>
     <label>Title bar size<input aria-label="Title bar size" type="range" min="25" max="100" value={Math.round(layouts.title.scale * 100)} onChange={event => position('title', { ...layouts.title, scale: Number(event.target.value) / 100 })} /></label>
-    <KeysMenu selection={copy.keySelection ?? 'auto'} weatherKeyId={scene?.weatherKeyId} disabled={!scene} choose={keySelection => { edit({ keySelection }); if (keySelection !== 'none' && resolveWeatherKey(keySelection, scene?.weatherKeyId) && !visible.title) toggle('title'); }} />
+    <KeysMenu extraKeys={extraKeys} selection={copy.keySelection ?? 'auto'} weatherKeyId={scene?.weatherKeyId} disabled={!scene} choose={keySelection => { edit({ keySelection }); if (keySelection !== 'none' && resolveWeatherKey(keySelection, scene?.weatherKeyId, extraKeys) && !visible.title) toggle('title'); }} />
     {visible.lower && <label>Lower third text<input value={copy.lower} onChange={event => edit({ lower: event.target.value })} /></label>}
     {visible.ticker && <label>Ticker text<input value={copy.ticker} onChange={event => edit({ ticker: event.target.value })} /></label>}
   </section>;

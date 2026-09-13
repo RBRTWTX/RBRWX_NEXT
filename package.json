@@ -26,14 +26,14 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "26.4.1",
     "@tauri-apps/cli": "2.11.4",
+    "@types/geojson": "7946.0.16",
+    "@types/node": "22.20.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
     "typescript": "7.0.2",
-    "vite": "8.2.2",
-    "@types/node": "22.20.1",
-    "@types/geojson": "7946.0.16",
-    "@maplibre/maplibre-gl-style-spec": "26.4.1"
+    "vite": "8.2.2"
   }
 }

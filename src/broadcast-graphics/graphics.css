@@ -39,3 +39,9 @@
 .wxg-menu, .wxg-keys-menu, .wxg-key-options, .wxg-key-strip { min-width: 0; }
 .wxg-key-options button { min-width: 0; box-sizing: border-box; }
 .wxg-key-color { border-inline: 0; }
+
+.wxg-continuous-key { width: 100%; min-width: 0; }
+.wxg-key-ticks { position: relative; height: 19px; font: 700 16px/19px 'Arial Narrow',Arial,sans-serif; }
+.wxg-key-ticks > span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.wxg-key-ticks > span:first-child { transform: none; }
+.wxg-key-ticks > span:last-child { transform: translateX(-100%); }
