@@ -1,20 +1,23 @@
 {
   "schema": 1,
-  "release": "current-weather-public-noaa-v3",
+  "release": "current-weather-public-noaa-v8-maplibre-event-safe-site-radar",
   "files": {
-    "src/current-weather/CurrentWeather.tsx": "bcc51ac297da5e63c1be178543439091ed67412904c4df66d10c447374bc2ad0",
-    "src/current-weather/controller.ts": "5a56b9dc973126e2ea120d2df2043cf1f924d2223d92c3ba18177722b3783759",
-    "src/current-weather/model.ts": "cc7af6f6f0d4736ca05888e9ebe3cddd8da6296dacb9580e57a2f89479048a25",
-    "src/current-weather/observations.ts": "9919930f990f4daba1d2a778e53d4ef225cd9df24af30f5b31e829154f2c173e",
-    "src/current-weather/palettes.json": "a999adae937fa2e3779f0cdbaa06122c905cfa009b89672c018f0254feafcf7b",
+    "src/current-weather/CurrentWeather.tsx": "06ccdec6f7b36a2135e89a90f19555966012241ad0ded89d2c4d44a0b69ecd5a",
+    "src/current-weather/controller.ts": "3018ad1f4715b5e0c8183fb64eba27c672d467ad17cbdafadf75009341320d4e",
+    "src/current-weather/model.ts": "63a9f785712743cdd739afe130fad172722535f800250c7cccfd1cb771106030",
+    "src/current-weather/observations.ts": "4eb8e18c600cfde809f6b81ad68a25fca6609f1c6ed56f2c09719a5eb7574316",
+    "src/current-weather/palettes.json": "16cd9fed28d53dd8b028151f6767021f82b2fa4e1d6e68ab98a8e36833883a01",
     "src/current-weather/public-config.ts": "26a9226590c3f0d920f2d3052b43ce9dd22d7c72ada4ce05b114234872cb7104",
-    "src/current-weather/public-imagery.ts": "6090657e3eefa266676f080b51db2697f0b9a8f65e2acfad394d580973391ad6",
-    "src/current-weather/weather.css": "ed9279767b28e5686618f9b1a97643ef17fd6da46c380547cb6040d9eae4b316",
+    "src/current-weather/public-imagery.ts": "ed5edd207b17a51c3cda0fd02f88e568f660f434e5ac22b35af831877f249591",
+    "src/current-weather/weather.css": "c519948b53a7d75e81e6f8a39ea64ff89914aae4130d059bfc8d284b3ffd53b7",
     "scripts/current-weather/fixtures/radar-legend.json": "c6bae0ac7337db3b3125bbc682862bae89edf3a46667dde395b2e34c534d68ba",
     "scripts/current-weather/fixtures/satellite-legend.json": "8a0581d5a9c55f9ad40c59ac7914a0d9380007b97c4ebeec916e31aa5a5df675",
     "scripts/current-weather/provider.mjs": "fd74ba659dc1e1f7590202b090c4e4360d51f43d2c35a58bbf86dc4107fecf29",
     "scripts/current-weather/verify.mjs": "d70fdeee3ecee03b7a8833ed69addc07897347ef15f0c916603b6d8a16e852bb",
-    "docs/current-weather/PUBLIC_SOURCES.md": "871c94af0cf278fe6b5a3d6301d11db00e17aa66f3e4266ff919d516ac1dc4dc",
-    "docs/current-weather/README.md": "24172b9f3375dc507b904185b0b2117bcad982a074178509db3cbeae55ac9b47"
+    "docs/current-weather/PUBLIC_SOURCES.md": "85feabc0d18be2a9d9a402154288a379cb8865fcd963aecd71e6580afdefab0e",
+    "docs/current-weather/README.md": "24172b9f3375dc507b904185b0b2117bcad982a074178509db3cbeae55ac9b47",
+    "src/current-weather/RadarScope1.pal": "9f066323c11fb93e5bb82231d31a93105c9ac38ee496986a7590928bc9de0ced",
+    "scripts/current-weather/verify-radar-sites.mjs": "637b09b4018362dd5caaf79ed332d3b459266c4fd73a53fb8faeecba434fb73f",
+    "scripts/current-weather/provider-radar.mjs": "86603a1c65d007d5a9322a993aa6d0c3de272eaedf2c18feaff076ecb25c335c"
   }
 }

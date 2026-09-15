@@ -1,21 +1,19 @@
 .wx-current-controls { display: grid; gap: 8px; color: #c4d3df; font: 12px Arial,sans-serif; margin: 12px 0; min-width: 0; }
-.wx-current-controls p { margin: 2px 0; line-height: 1.45; }
 .wx-current-controls label { display: block; }
 .wx-current-controls input:not([type=checkbox]) { box-sizing: border-box; width: 100%; }
 .wx-current-controls button,.wx-weather-playback button { border: 1px solid #35546b; border-radius: 3px; background: #132938; color: #f5f8fb; padding: 6px; cursor: pointer; }
-.wx-current-controls input[type=password] { background: #102131; color: #f5f8fb; border: 1px solid #35546b; padding: 6px; margin: 5px 0; }
-.wx-current-controls details { border: 1px solid #35546b; padding: 7px; }
-.wx-current-controls summary { cursor: pointer; }
-.wx-observations { max-height: 300px; overflow: auto; display: grid; gap: 8px; }
-.wx-observations article { padding: 7px; border: 1px solid #31475a; line-height: 1.5; }
-.wx-observations small { display: block; color: #b5c6d4; }
+.wx-current-controls button:disabled,.wx-weather-playback button:disabled { opacity: .45; cursor: default; }
 .wx-weather-playback { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font: 11px Arial,sans-serif; color: #fff; }
 .wx-weather-playback input[type=range] { width: 100px; }
-.wx-weather-playback button:disabled { opacity: .45; cursor: default; }
 .wx-weather-status { position: absolute; bottom: 42px; left: 18px; max-width: calc(100% - 36px); background: #07111ade; color: #fff; padding: 5px 8px; font: 12px Arial,sans-serif; pointer-events: none; }
 .wx-product-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 12px; }
 .wx-product-selector button { padding: 8px 3px; background: #102131; color: #fff; border: 1px solid #35546b; border-radius: 3px; cursor: pointer; font-size: 11px; }
 .wx-product-selector button[aria-pressed=true] { border-color: #cb1678; background: #302040; }
+.wx-radar-picker { display: grid !important; gap: 5px; }
+.wx-radar-picker select { width: 100%; min-width: 0; background: #102131; color: #f5f8fb; border: 1px solid #35546b; border-radius: 3px; padding: 7px 6px; }
+.wx-radar-active { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-height: 26px; }
+.wx-radar-active button { padding: 4px 7px; border-color: #a92d73; background: #302040; }
+.wx-radar-active small,.wx-radar-hint { color: #9fb3c2; line-height: 1.35; }
 
 @media (max-width: 1350px) {
   .rbrwx-broadcast-workspace:has(.wx-weather-playback) .topbar-status span:not(.health) { display: none; }

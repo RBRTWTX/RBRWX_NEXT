@@ -1,14 +1,110 @@
-import type { Map as WeatherMap, GeoJSONSource } from 'maplibre-gl';
-import { PublicImagery } from './public-imagery';
-import { defaultOptions, frameTimes, freshness, initialSnapshot, nextFrame, temperature, type Options, type Product, type Snapshot } from './model';
+import type { GeoJSONSource, Map as WeatherMap } from 'maplibre-gl';
+import palettes from './palettes.json';
+import { PublicImagery, RadarImagery, type PublicImageryOptions } from './public-imagery';
+import { defaultOptions, frameTimes, freshness, initialSnapshot, nextFrame, temperatureLabel, type Observation, type Options, type Product, type RadarSite, type Snapshot } from './model';
 import { ObservationsClient } from './observations';
-const sourceId = 'rbrwx-current-observations';
-const layerId = 'rbrwx-current-observation-labels';
-export type ManagerFactory = (map: WeatherMap, options: ConstructorParameters<typeof PublicImagery>[1]) => Promise<PublicImagery>;
-const loadManager: ManagerFactory = async (map, options) => new PublicImagery(map, options);
+
+const observationSourceId = 'rbrwx-current-observations';
+const observationLayerId = 'rbrwx-current-observation-labels';
+const temperatureFieldSourceId = 'rbrwx-current-temperature-field';
+const temperatureFieldLayerId = 'rbrwx-current-temperature-field-fill';
+
+type ManagerState = Record<string, unknown>;
+interface WeatherManager {
+  currentLoadedTimeKey: number | null;
+  on(event: string, listener: (state: ManagerState) => void): void;
+  initialize(): Promise<void>;
+  refreshData(): Promise<void>;
+  setOpacity(value: number): Promise<void>;
+  setUnits(units: string): Promise<void>;
+  setMRMSTimestamp(time: number): Promise<void>;
+  setMRMSEnabled?(enabled: boolean): Promise<void>;
+  setSatelliteTimestamp(time: number): Promise<void>;
+  setPrimaryRadar?(id: string): Promise<void>;
+  toggleRadarSite?(id: string): Promise<void>;
+  destroy(): void;
+}
+
+interface ManagerOptions extends PublicImageryOptions { mrmsEnabled?: boolean; onNotice?: (message: string) => void }
+export type ManagerFactory = (map: WeatherMap, options: ManagerOptions) => Promise<WeatherManager>;
+const loadManager: ManagerFactory = async (map, options) => options.product === 'radar'
+  ? new RadarImagery(map, { ...options, product: 'radar', mrmsEnabled: options.mrmsEnabled, onNotice: options.onNotice })
+  : new PublicImagery(map, options);
+
+interface TemperaturePaletteBin { label: string; rgba: number[] }
+interface TemperaturePalette { id: string; bins: TemperaturePaletteBin[] }
+interface TemperatureColorBin { low: number; high: number; css: string }
+const temperaturePalette = ((palettes as unknown as { keys: TemperaturePalette[] }).keys ?? []).find(key => key.id === 'nws.ndfd.temperature');
+
+function temperatureRange(label: string): [number, number] | null {
+  const values = (label.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter(Number.isFinite);
+  if (!values.length) return null;
+  const lower = label.toLowerCase();
+  if (/less|below|under|^\s*</.test(lower)) return [-Infinity, values[0]];
+  if (/greater|above|over|^\s*>/.test(lower)) return [values[0], Infinity];
+  if (values.length >= 2) return [Math.min(values[0], values[1]), Math.max(values[0], values[1])];
+  return [values[0], values[0]];
+}
+
+const temperatureColorBins: TemperatureColorBin[] = (temperaturePalette?.bins ?? []).flatMap(bin => {
+  const range = temperatureRange(bin.label); if (!range) return [];
+  const [r = 0, g = 0, b = 0, a = 255] = bin.rgba;
+  return [{ low: range[0], high: range[1], css: `rgba(${r},${g},${b},${Math.min(.78, a / 255)})` }];
+}).sort((a, b) => a.low - b.low || a.high - b.high);
+
+function temperatureColor(fahrenheit: number): string {
+  if (!temperatureColorBins.length) return 'rgba(68,124,178,.58)';
+  let chosen = temperatureColorBins[0];
+  for (const bin of temperatureColorBins) {
+    if (fahrenheit < bin.low) break;
+    chosen = bin;
+    if (fahrenheit <= bin.high) break;
+  }
+  return chosen.css;
+}
+
+function emptyFeatureCollection() { return { type: 'FeatureCollection' as const, features: [] as any[] }; }
+
+function buildTemperatureField(map: WeatherMap, observations: Observation[]) {
+  const valid = observations.filter(o => o.temperature !== null);
+  if (valid.length < 2 || map.getZoom() < 4) return emptyFeatureCollection();
+  const bounds = map.getBounds(), west = bounds.getWest(), east = bounds.getEast(), south = bounds.getSouth(), north = bounds.getNorth();
+  if (!(west < east && south < north)) return emptyFeatureCollection();
+  const zoom = map.getZoom(), cols = Math.max(32, Math.min(84, Math.round(26 + zoom * 4.5)));
+  const lonSpan = east - west, latSpan = north - south, midLat = (south + north) / 2;
+  const ratio = Math.max(.35, Math.min(1.7, Math.abs(latSpan / Math.max(.01, lonSpan * Math.cos(midLat * Math.PI / 180)))));
+  const rows = Math.max(18, Math.min(64, Math.round(cols * ratio)));
+  const dx = lonSpan / cols, dy = latSpan / rows, maxDistance = Math.max(lonSpan * .45, latSpan * .65, .55);
+  const features: any[] = [];
+  for (let y = 0; y < rows; y++) {
+    const y0 = south + y * dy, y1 = y0 + dy, lat = (y0 + y1) / 2, cos = Math.cos(lat * Math.PI / 180);
+    for (let x = 0; x < cols; x++) {
+      const x0 = west + x * dx, x1 = x0 + dx, lng = (x0 + x1) / 2;
+      const nearest = valid.map(o => {
+        const d = Math.hypot((o.lng - lng) * cos, o.lat - lat);
+        return { o, d };
+      }).sort((a, b) => a.d - b.d).slice(0, 9);
+      if (!nearest.length || nearest[0].d > maxDistance) continue;
+      let weighted = 0, weights = 0;
+      for (const { o, d } of nearest) {
+        const weight = 1 / Math.pow(Math.max(.015, d), 1.7);
+        weighted += (o.temperature! * 9 / 5 + 32) * weight; weights += weight;
+      }
+      if (!weights) continue;
+      const tempF = weighted / weights;
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]] },
+        properties: { tempF, color: temperatureColor(tempF) },
+      });
+    }
+  }
+  return { type: 'FeatureCollection' as const, features };
+}
+
 export class CurrentWeatherController {
   private map: WeatherMap | null = null;
-  private manager: PublicImagery | null = null;
+  private manager: WeatherManager | null = null;
   private generation = 0;
   private abort: AbortController | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -25,89 +121,181 @@ export class CurrentWeatherController {
   private received = 0;
   private networkFailed = false;
   private refreshing = false;
+  private paletteFallback = false;
   private observations = new ObservationsClient();
   snapshot = initialSnapshot();
-  constructor(private notify: (snapshot: Snapshot) => void, private factory = loadManager) {}
+
+  constructor(private notify: (snapshot: Snapshot) => void, private factory = loadManager) { }
   private emit(patch: Partial<Snapshot>) { this.snapshot = { ...this.snapshot, ...patch }; this.notify(this.snapshot); }
   connect(map: WeatherMap, anchor: string): () => void { this.map = map; this.anchor = anchor; void this.start(); return () => { this.clear(); this.map = null; }; }
+
   select(scene: string, product: Product, options: Options, apiKey: string) {
+    const previousMrmsEnabled = this.options.mrmsEnabled;
     const reload = scene !== this.scene || product !== this.product || apiKey !== this.apiKey;
     this.scene = scene; this.product = product; this.options = options; this.apiKey = apiKey;
-    if(reload) void this.start(); else {
-      void this.manager?.setOpacity(options.opacity).catch(()=>this.emit({status:'unavailable',message:'Unable to update imagery opacity'}));
-      void this.manager?.setUnits(options.units).catch(()=>this.emit({status:'unavailable',message:'Unable to update weather units'}));
+    if (reload) void this.start();
+    else {
+      void this.manager?.setOpacity(options.opacity).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update imagery opacity' }));
+      void this.manager?.setUnits(options.units).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update weather units' }));
+      if (options.mrmsEnabled !== previousMrmsEnabled && this.product === 'radar') {
+        void this.manager?.setMRMSEnabled?.(options.mrmsEnabled).catch(() => this.emit({ message: 'Unable to update the MRMS backup layer' }));
+      }
       this.drawObservations();
     }
   }
+
   private clear() {
-    this.generation++; this.abort?.abort(); this.abort=null; this.stop();
-    if(this.interval)clearInterval(this.interval);if(this.refreshInterval)clearInterval(this.refreshInterval);if(this.moveTimer)clearTimeout(this.moveTimer);
-    this.interval=null;this.refreshInterval=null;this.moveTimer=null;
-    this.map?.off('moveend',this.move);
-    this.manager?.destroy();this.manager=null;
-    if(this.map?.getLayer(layerId))this.map.removeLayer(layerId);
-    if(this.map?.getSource(sourceId))this.map.removeSource(sourceId);
-    this.requested=null;this.received=0;this.networkFailed=false;this.refreshing=false;
+    this.generation++; this.abort?.abort(); this.abort = null; this.stop();
+    if (this.interval) clearInterval(this.interval); if (this.refreshInterval) clearInterval(this.refreshInterval); if (this.moveTimer) clearTimeout(this.moveTimer);
+    this.interval = null; this.refreshInterval = null; this.moveTimer = null;
+    this.map?.off('moveend', this.move);
+    this.manager?.destroy(); this.manager = null;
+    for (const id of [observationLayerId, temperatureFieldLayerId]) if (this.map?.getLayer(id)) this.map.removeLayer(id);
+    for (const id of [observationSourceId, temperatureFieldSourceId]) if (this.map?.getSource(id)) this.map.removeSource(id);
+    this.requested = null; this.received = 0; this.networkFailed = false; this.refreshing = false; this.paletteFallback = false;
   }
-  destroy() { this.clear(); this.map=null; }
+
+  destroy() { this.clear(); this.map = null; }
+
   private async start() {
-    this.clear(); const generation=this.generation,map=this.map;
-    this.emit(initialSnapshot());if(this.product==='map')return;
-    if(!map){this.emit({status:'loading',message:'Waiting for geographic map'});return;}
-    if(this.product==='observations') {
-      map.addSource(sourceId,{type:'geojson',data:{type:'FeatureCollection',features:[]},attribution:'NOAA / National Weather Service observations'});
-      map.addLayer({id:layerId,type:'symbol',source:sourceId,layout:{'text-field':['get','label'],'text-size':15,'text-font':['Noto Sans Bold'],'text-offset':[0,1],'text-anchor':'top','text-allow-overlap':false},paint:{'text-color':'#ffffff','text-halo-color':'#07111a','text-halo-width':2,'text-opacity':this.options.opacity}},this.anchor);
-      map.on('moveend',this.move);await this.loadObservations(generation);
-      if(generation!==this.generation)return;
-      this.refreshInterval=setInterval(()=>void this.loadObservations(generation),300000);
-      this.interval=setInterval(()=>this.drawObservations(),15000);return;
+    this.clear(); const generation = this.generation, map = this.map;
+    this.emit(initialSnapshot()); if (this.product === 'map') return;
+    if (!map) { this.emit({ status: 'loading', message: 'Waiting for geographic map' }); return; }
+
+    if (this.product === 'observations') {
+      map.addSource(temperatureFieldSourceId, { type: 'geojson', data: emptyFeatureCollection() });
+      map.addLayer({ id: temperatureFieldLayerId, type: 'fill', source: temperatureFieldSourceId, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': Math.min(.68, this.options.opacity * .72), 'fill-antialias': true } }, this.anchor);
+      map.addSource(observationSourceId, { type: 'geojson', data: emptyFeatureCollection(), attribution: 'NOAA / National Weather Service observations' });
+      map.addLayer({
+        id: observationLayerId, type: 'symbol', source: observationSourceId,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 4, 11, 7, 14, 10, 17, 13, 19],
+          'text-font': ['Noto Sans Bold'], 'text-anchor': 'center', 'text-allow-overlap': false, 'text-ignore-placement': false,
+        },
+        paint: { 'text-color': '#ffffff', 'text-halo-color': '#07111a', 'text-halo-width': 2.2, 'text-opacity': this.options.opacity },
+      }, this.anchor);
+      map.on('moveend', this.move); await this.loadObservations(generation);
+      if (generation !== this.generation) return;
+      this.refreshInterval = setInterval(() => void this.loadObservations(generation), 300000);
+      this.interval = setInterval(() => this.drawObservations(), 15000); return;
     }
-    this.emit({status:'loading',message:'Loading public NOAA imagery…'});this.loadStarted=Date.now();
+
+    this.emit({ status: 'loading', message: this.product === 'radar' ? 'Loading NWS WSR-88D radar…' : 'Loading public NOAA imagery…' }); this.loadStarted = Date.now();
+    let manager: WeatherManager | null = null;
     try {
-      const manager=await this.factory(map,{
-        product:this.product, anchor:this.anchor, opacity:this.options.opacity,
-        onError:message=>{if(generation===this.generation){this.networkFailed=true;this.emit({status:'unavailable',message});}}, 
+      manager = await this.factory(map, {
+        product: this.product, anchor: this.anchor, opacity: this.options.opacity, mrmsEnabled: this.options.mrmsEnabled,
+        onError: message => { if (generation === this.generation) { this.networkFailed = true; this.emit({ status: 'unavailable', message }); } },
+        onNotice: message => { if (generation === this.generation) this.emit({ message }); },
       });
-      if(generation!==this.generation){manager.destroy();return;}this.manager=manager;
-      manager.on('state:change',state=>{
-        if(generation!==this.generation)return;
-        const times=frameTimes(state.availableTimestamps);
-        const raw=state.mrmsTimestamp;
-        this.requested=frameTimes([raw])[0]??null;
-        this.emit({times,selectedTime:this.requested});
+      if (generation !== this.generation) { manager.destroy(); return; } this.manager = manager;
+      manager.on('state:change', state => {
+        if (generation !== this.generation) return;
+        const times = frameTimes(state.availableTimestamps), raw = state.mrmsTimestamp;
+        this.requested = frameTimes([raw])[0] ?? null;
+        const radarSites = Array.isArray(state.radarSites) ? state.radarSites as RadarSite[] : this.snapshot.radarSites;
+        const activeRadarIds = Array.isArray(state.activeRadarIds) ? state.activeRadarIds.filter((id): id is string => typeof id === 'string') : this.snapshot.activeRadarIds;
+        const primaryRadarId = typeof state.primaryRadarId === 'string' ? state.primaryRadarId : activeRadarIds[0] ?? null;
+        this.paletteFallback = state.paletteFallback === true;
+        this.emit({ times, selectedTime: this.requested, radarSites, activeRadarIds, primaryRadarId });
       });
-      this.interval=setInterval(()=>this.pollFrame(),500);
-      await manager.initialize();if(generation!==this.generation)return;
-      this.received=Date.now();this.refreshInterval=setInterval(()=>void this.refresh(),120000);
-    }catch(error){if(generation===this.generation){this.networkFailed=true;this.emit({status:'unavailable',message:`Public NOAA imagery: ${error instanceof Error?error.message:'request failed'}. Refresh to retry.`});}}
+      this.interval = setInterval(() => this.pollFrame(), 500);
+      await manager.initialize(); if (generation !== this.generation) return;
+      this.received = Date.now(); this.refreshInterval = setInterval(() => void this.refresh(), 120000);
+    } catch (error) {
+      if (this.manager === manager && manager) {
+        manager.destroy(); this.manager = null;
+        if (this.interval) clearInterval(this.interval); this.interval = null;
+      }
+      if (generation === this.generation) { this.networkFailed = true; this.emit({ status: 'unavailable', message: `Public NOAA imagery: ${error instanceof Error ? error.message : 'request failed'}. Refresh to retry.` }); }
+    }
   }
+
   private pollFrame() {
-    const manager=this.manager;if(!manager)return;
-    const time=frameTimes([manager.currentLoadedTimeKey])[0]??null;
-    if(time!==null){const status=freshness(time,this.product==='radar'?15:30,this.networkFailed||Date.now()-this.received>180000);this.emit({time,status,message:`${this.product==='radar'?'NOAA MRMS base reflectivity':'NOAA GOES East/West infrared · Band 14'} · ${status.toUpperCase()} · ${new Date(time).toLocaleString()}`});}
-    else if(Date.now()-this.loadStarted>60000)this.emit({time:null,status:'unavailable',message:'No NOAA imagery loaded. Check the connection, then Refresh.'});
+    const manager = this.manager; if (!manager) return;
+    const time = frameTimes([manager.currentLoadedTimeKey])[0] ?? null;
+    if (time !== null) {
+      const status = freshness(time, this.product === 'radar' ? 15 : 30, this.networkFailed || Date.now() - this.received > 180000);
+      let label = 'NOAA GOES East/West infrared · Band 14';
+      if (this.product === 'radar') {
+        const id = this.snapshot.primaryRadarId ?? 'KEWX', shortId = id.startsWith('K') ? id.slice(1) : id;
+        label = `${shortId} WSR-88D · SR_BREF · ${this.paletteFallback ? 'NWS palette fallback' : 'RadarScope palette'}`;
+      }
+      this.emit({ time, status, message: `${label} · ${status.toUpperCase()} · ${new Date(time).toLocaleString()}` });
+    } else if (this.product === 'radar' && !this.snapshot.activeRadarIds.length) {
+      this.emit({ time: null, status: 'off', message: this.options.mrmsEnabled ? 'No site radar selected · MRMS backup mosaic active' : 'No radar site selected · click a radar tower or choose one from the menu' });
+    } else if (Date.now() - this.loadStarted > 60000) this.emit({ time: null, status: 'unavailable', message: 'No NOAA imagery loaded. Check the connection, then Refresh.' });
   }
-  private move=()=>{if(this.moveTimer)clearTimeout(this.moveTimer);this.moveTimer=setTimeout(()=>void this.loadObservations(this.generation),650);};
-  private async loadObservations(generation:number){
-    const map=this.map;if(!map)return;this.abort?.abort();const abort=new AbortController();this.abort=abort;
-    const center=map.getCenter();this.emit({status:'loading',message:'Loading stations near the map center…',observations:[],time:null});this.drawObservations();
-    try{const observations=await this.observations.load(center.lng,center.lat,abort.signal);if(generation!==this.generation||abort.signal.aborted)return;this.emit({observations});this.drawObservations();}
-    catch(error){if(generation===this.generation&&!abort.signal.aborted)this.emit({status:'unavailable',message:`NWS observations: ${error instanceof Error?error.message:'request failed'}. Refresh to retry.`});}
+
+  private move = () => { if (this.moveTimer) clearTimeout(this.moveTimer); this.moveTimer = setTimeout(() => void this.loadObservations(this.generation), 650); };
+
+  private async loadObservations(generation: number) {
+    const map = this.map; if (!map) return; this.abort?.abort(); const abort = new AbortController(); this.abort = abort;
+    const bounds = map.getBounds(); this.emit({ status: 'loading', message: 'Updating visible NWS temperatures…', time: null });
+    try {
+      const observations = await this.observations.loadViewport({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth(), zoom: map.getZoom() }, abort.signal);
+      if (generation !== this.generation || abort.signal.aborted) return;
+      this.emit({ observations }); this.drawObservations();
+    } catch (error) {
+      if (generation === this.generation && !abort.signal.aborted) this.emit({ status: 'unavailable', message: `NWS observations: ${error instanceof Error ? error.message : 'request failed'}. Refresh to retry.` });
+    }
   }
-  private drawObservations(){
-    if(this.product!=='observations')return;const observations=this.snapshot.observations;
-    const features=observations.map(o=>{const state=freshness(o.time,90,o.cached);return{type:'Feature' as const,geometry:{type:'Point' as const,coordinates:[o.lng,o.lat]},properties:{label:`${o.id}  ${temperature(o.temperature,this.options.units)}${state==='stale'?' · STALE':state==='unavailable'?' · TIME INVALID':''}`}};});
-    (this.map?.getSource(sourceId) as GeoJSONSource|undefined)?.setData({type:'FeatureCollection',features});
-    if(this.map?.getLayer(layerId))this.map.setPaintProperty(layerId,'text-opacity',this.options.opacity);
-    if(observations.length){const states=observations.map(o=>freshness(o.time,90,o.cached));const status=states.includes('unavailable')?'unavailable':states.includes('stale')?'stale':states.includes('cached')?'cached':'fresh';this.emit({status,time:Math.min(...observations.map(o=>o.time)),message:`NWS · ${observations.length} nearby stations · ${status.toUpperCase()} · Individual observation times below`});}
+
+  private drawObservations() {
+    if (this.product !== 'observations' || !this.map) return; const observations = this.snapshot.observations;
+    const features = observations.flatMap(o => {
+      const label = temperatureLabel(o.temperature, this.options.units); if (!label) return [];
+      return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [o.lng, o.lat] }, properties: { label } }];
+    });
+    (this.map.getSource(observationSourceId) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
+    (this.map.getSource(temperatureFieldSourceId) as GeoJSONSource | undefined)?.setData(buildTemperatureField(this.map, observations));
+    if (this.map.getLayer(observationLayerId)) this.map.setPaintProperty(observationLayerId, 'text-opacity', this.options.opacity);
+    if (this.map.getLayer(temperatureFieldLayerId)) this.map.setPaintProperty(temperatureFieldLayerId, 'fill-opacity', Math.min(.68, this.options.opacity * .72));
+    if (observations.length) {
+      const states = observations.map(o => freshness(o.time, 90, o.cached));
+      const status = states.includes('unavailable') ? 'unavailable' : states.includes('stale') ? 'stale' : states.includes('cached') ? 'cached' : 'fresh';
+      this.emit({ status, time: Math.min(...observations.map(o => o.time)), message: `NWS observed temperatures · ${status.toUpperCase()} · ${observations.length} stations sampled for this viewport` });
+    }
   }
-  async refresh(){if(this.refreshing)return;this.refreshing=true;const generation=this.generation;
-    try{if(this.product==='observations')await this.loadObservations(generation);else if(this.manager){await this.manager.refreshData();if(generation===this.generation){this.received=Date.now();this.networkFailed=false;this.pollFrame();}}else await this.start();}
-    catch{if(generation===this.generation){this.networkFailed=true;this.emit({status:this.snapshot.time?freshness(this.snapshot.time,this.product==='radar'?15:30,true):'unavailable',message:'Refresh failed. Any displayed frame retains its original timestamp.'});}}
-    finally{if(generation===this.generation)this.refreshing=false;}
+
+  async refresh() {
+    if (this.refreshing) return; this.refreshing = true; const generation = this.generation;
+    try {
+      if (this.product === 'observations') await this.loadObservations(generation);
+      else if (this.manager) { await this.manager.refreshData(); if (generation === this.generation) { this.received = Date.now(); this.networkFailed = false; this.pollFrame(); } }
+      else await this.start();
+    } catch {
+      if (generation === this.generation) { this.networkFailed = true; this.emit({ status: this.snapshot.time ? freshness(this.snapshot.time, this.product === 'radar' ? 15 : 30, true) : 'unavailable', message: 'Refresh failed. Any displayed frame retains its original timestamp.' }); }
+    } finally { if (generation === this.generation) this.refreshing = false; }
   }
-  async seek(time:number){if(!this.manager||!this.snapshot.times.includes(time))return;try{this.requested=time;this.loadStarted=Date.now();await(this.product==='radar'?this.manager.setMRMSTimestamp(time/1000):this.manager.setSatelliteTimestamp(time/1000));}catch{this.stop();this.emit({message:'Could not load the selected frame. Displayed timestamp is unchanged.'});}}
-  step(direction:1|-1){this.stop();const next=nextFrame(this.snapshot.times,this.snapshot.selectedTime,direction,this.options.loop);if(next!==null)void this.seek(next);}
-  stop(){if(this.playTimer)clearInterval(this.playTimer);this.playTimer=null;if(this.snapshot.playing)this.emit({playing:false});}
-  play(){if(this.snapshot.playing){this.stop();return;}if(this.snapshot.times.length<2)return;this.emit({playing:true});this.playTimer=setInterval(()=>{if(this.snapshot.time!==this.snapshot.selectedTime)return;const next=nextFrame(this.snapshot.times,this.snapshot.selectedTime,1,this.options.loop);if(next===null){this.stop();return;}void this.seek(next);},800);}
+
+  async setPrimaryRadar(id: string) {
+    if (this.product !== 'radar' || !this.manager?.setPrimaryRadar) return;
+    await this.manager.setPrimaryRadar(id);
+  }
+
+  async toggleRadarSite(id: string) {
+    if (this.product !== 'radar' || !this.manager?.toggleRadarSite) return;
+    await this.manager.toggleRadarSite(id);
+  }
+
+  async seek(time: number) {
+    if (!this.manager || !this.snapshot.times.includes(time)) return;
+    try {
+      this.requested = time; this.loadStarted = Date.now();
+      await (this.product === 'radar' ? this.manager.setMRMSTimestamp(time / 1000) : this.manager.setSatelliteTimestamp(time / 1000));
+    } catch { this.stop(); this.emit({ message: 'Could not load the selected frame. Displayed timestamp is unchanged.' }); }
+  }
+
+  step(direction: 1 | -1) { this.stop(); const next = nextFrame(this.snapshot.times, this.snapshot.selectedTime, direction, this.options.loop); if (next !== null) void this.seek(next); }
+  stop() { if (this.playTimer) clearInterval(this.playTimer); this.playTimer = null; if (this.snapshot.playing) this.emit({ playing: false }); }
+  play() {
+    if (this.snapshot.playing) { this.stop(); return; } if (this.snapshot.times.length < 2) return;
+    this.emit({ playing: true }); this.playTimer = setInterval(() => {
+      if (this.snapshot.time !== this.snapshot.selectedTime) return;
+      const next = nextFrame(this.snapshot.times, this.snapshot.selectedTime, 1, this.options.loop);
+      if (next === null) { this.stop(); return; } void this.seek(next);
+    }, 800);
+  }
 }
