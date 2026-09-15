@@ -143,12 +143,16 @@ try {
   assert.match(controllerSource, /setMRMSEnabled\?\./, 'Controller must update MRMS backup in place');
   assert.match(controllerSource, /manager\.destroy\(\); this\.manager = null;/, 'A manager that fails initialization must be destroyed instead of leaking listeners or timers');
   assert.match(controllerSource, /key\.id === 'nws\.ndfd\.temperature'/, 'Temperature field must use the verified absolute NWS NDFD temperature key');
-  assert.match(controllerSource, /o\.temperature! \* 9 \/ 5 \+ 32/, 'Observed Celsius temperatures must be converted to Fahrenheit before absolute NWS temperature-palette lookup');
-  assert.match(controllerSource, /temperatureColor\(tempF\)/, 'Temperature field color must be selected from the absolute Fahrenheit value, not viewport-relative min/max');
+  assert.match(controllerSource, /observation\.temperature \* 9 \/ 5 \+ 32/, 'Observed Celsius temperatures must be converted to Fahrenheit before absolute NWS temperature-palette lookup');
+  assert.match(controllerSource, /temperatureRgba\(weighted \/ weights\)/, 'Temperature raster color must be selected from the absolute Fahrenheit value, not viewport-relative min/max');
+  assert.match(controllerSource, /type: 'image'/, 'Temperature field must use one image source instead of visible square GeoJSON cells');
+  assert.match(controllerSource, /type: 'raster'/, 'Temperature image source must render as a raster layer');
+  assert.match(controllerSource, /'raster-resampling': 'linear'/, 'Temperature raster must use linear resampling to avoid visible pixel-cell boundaries');
+  assert.doesNotMatch(controllerSource, /geometry: \{ type: 'Polygon'.*tempF/s, 'Temperature field must not return to polygon grid cells');
   assert.match(controllerSource, /properties: \{ label \}/, 'Map observation features must carry only the temperature label');
   assert.doesNotMatch(controllerSource, /properties:\s*\{\s*label:\s*`\$\{o\.id\}/, 'Station IDs must not be rendered with temperatures');
 
-  console.log('Radar sites PASS: wide/regional/local viewport discovery, zoom-aware temperature density, temperature-only labels, MRMS backup default and synchronized playback, exact supplied palette gradient semantics, dynamic site-qualified SR_BREF layer discovery, per-site fallback state, WSR-88D-only site filtering, safe MapLibre frame swaps, in-place MRMS toggle, KEWX mapping and three-site cap contract.');
+  console.log('Radar sites PASS: wide/regional/local viewport discovery, zoom-aware temperature density, seamless absolute-palette temperature raster, temperature-only labels, MRMS backup default and synchronized playback, exact supplied palette gradient semantics, dynamic site-qualified SR_BREF layer discovery, per-site fallback state, WSR-88D-only site filtering, safe MapLibre frame swaps, in-place MRMS toggle, KEWX mapping and three-site cap contract.');
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }

@@ -5,7 +5,7 @@
 .wx-current-controls button:disabled,.wx-weather-playback button:disabled { opacity: .45; cursor: default; }
 .wx-weather-playback { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font: 11px Arial,sans-serif; color: #fff; }
 .wx-weather-playback input[type=range] { width: 100px; }
-.wx-weather-status { position: absolute; bottom: 42px; left: 18px; max-width: calc(100% - 36px); background: #07111ade; color: #fff; padding: 5px 8px; font: 12px Arial,sans-serif; pointer-events: none; }
+.wx-weather-status { max-width: 100%; background: #07111ade; color: #fff; padding: 5px 8px; font: 11px Arial,sans-serif; pointer-events: none; }
 .wx-product-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 12px; }
 .wx-product-selector button { padding: 8px 3px; background: #102131; color: #fff; border: 1px solid #35546b; border-radius: 3px; cursor: pointer; font-size: 11px; }
 .wx-product-selector button[aria-pressed=true] { border-color: #cb1678; background: #302040; }

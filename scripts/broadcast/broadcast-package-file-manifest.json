@@ -24,8 +24,8 @@
     "src/broadcast/broadcastState.ts": "dff3174d7a3bb062ba194b9fddda05c1654334db33bc715605c14cf15804e23d",
     "src/broadcast/broadcastTypes.ts": "c72abcb714767e8f6ab00cca8e2e10d855308833e559f6fe26cc063d5978fc60",
     "src/broadcast/index.ts": "d59a838ebcef79e3aacf30f0752eda1abb3fdaf0ebd58d7cc0283f07e8a70115",
-    "src/broadcast-host/RbrwxBroadcastWorkspace.tsx": "2175ec9c720c570ea446dcc5e8979513f3173d884563e4d391ae5af6b899bbaf",
-    "src/broadcast-host/broadcastHost.css": "2231a6a56d4a38e7ce9eb7d54037ff28816ea63c9d25a267d6f905f6f42d15f0",
-    "src/broadcast-host/sceneCatalog.ts": "52138169f01eb1c89d015b03e43b1ad9d2dbd380f48943e24a8a496c7a119224"
+    "src/broadcast-host/RbrwxBroadcastWorkspace.tsx": "29c55a3a9a42cd23bcb07a3de7a530ace9e5d7dd0983405119e9aa4a7eee5c2c",
+    "src/broadcast-host/broadcastHost.css": "aaac961cac968499f6d0f9a118d662f253a67fdb9771cb7d1fa7bd994ce66bb7",
+    "src/broadcast-host/sceneCatalog.ts": "e835502a20ee7d0deb9c350a8023a9454234bd1a9561ec733db534abe1661406"
   }
 }

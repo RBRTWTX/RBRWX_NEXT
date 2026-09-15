@@ -31,6 +31,7 @@ export interface Options {
   opacity: number;
   loop: boolean;
   mrmsEnabled: boolean;
+  sweepsEnabled: boolean;
 }
 
 export interface Snapshot {
@@ -64,6 +65,7 @@ export const defaultOptions = (): Options => ({
   opacity: .85,
   loop: true,
   mrmsEnabled: false,
+  sweepsEnabled: true,
 });
 
 export const productTitles: Record<Product, string> = {

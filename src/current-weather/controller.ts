@@ -19,88 +19,119 @@ interface WeatherManager {
   setUnits(units: string): Promise<void>;
   setMRMSTimestamp(time: number): Promise<void>;
   setMRMSEnabled?(enabled: boolean): Promise<void>;
+  setSweepsEnabled?(enabled: boolean): Promise<void>;
   setSatelliteTimestamp(time: number): Promise<void>;
   setPrimaryRadar?(id: string): Promise<void>;
   toggleRadarSite?(id: string): Promise<void>;
   destroy(): void;
 }
 
-interface ManagerOptions extends PublicImageryOptions { mrmsEnabled?: boolean; onNotice?: (message: string) => void }
+interface ManagerOptions extends PublicImageryOptions { mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
 export type ManagerFactory = (map: WeatherMap, options: ManagerOptions) => Promise<WeatherManager>;
 const loadManager: ManagerFactory = async (map, options) => options.product === 'radar'
   ? new RadarImagery(map, { ...options, product: 'radar', mrmsEnabled: options.mrmsEnabled, onNotice: options.onNotice })
   : new PublicImagery(map, options);
 
-interface TemperaturePaletteBin { label: string; rgba: number[] }
+interface TemperaturePaletteBin { label: string; value?: string | number; rgba: number[] }
 interface TemperaturePalette { id: string; bins: TemperaturePaletteBin[] }
-interface TemperatureColorBin { low: number; high: number; css: string }
+type Rgba = [number, number, number, number];
+type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
+interface TemperatureFieldImage { url: string; coordinates: ImageCoordinates }
+
 const temperaturePalette = ((palettes as unknown as { keys: TemperaturePalette[] }).keys ?? []).find(key => key.id === 'nws.ndfd.temperature');
 
-function temperatureRange(label: string): [number, number] | null {
-  const values = (label.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter(Number.isFinite);
+function temperatureStopValue(bin: TemperaturePaletteBin): number | null {
+  const explicit = Number(bin.value);
+  if (Number.isFinite(explicit)) return explicit;
+  const values = (bin.label.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number).filter(Number.isFinite);
   if (!values.length) return null;
-  const lower = label.toLowerCase();
-  if (/less|below|under|^\s*</.test(lower)) return [-Infinity, values[0]];
-  if (/greater|above|over|^\s*>/.test(lower)) return [values[0], Infinity];
-  if (values.length >= 2) return [Math.min(values[0], values[1]), Math.max(values[0], values[1])];
-  return [values[0], values[0]];
+  if (values.length >= 2) return (Math.min(values[0], values[1]) + Math.max(values[0], values[1])) / 2;
+  return values[0];
 }
 
-const temperatureColorBins: TemperatureColorBin[] = (temperaturePalette?.bins ?? []).flatMap(bin => {
-  const range = temperatureRange(bin.label); if (!range) return [];
-  const [r = 0, g = 0, b = 0, a = 255] = bin.rgba;
-  return [{ low: range[0], high: range[1], css: `rgba(${r},${g},${b},${Math.min(.78, a / 255)})` }];
-}).sort((a, b) => a.low - b.low || a.high - b.high);
-
-function temperatureColor(fahrenheit: number): string {
-  if (!temperatureColorBins.length) return 'rgba(68,124,178,.58)';
-  let chosen = temperatureColorBins[0];
-  for (const bin of temperatureColorBins) {
-    if (fahrenheit < bin.low) break;
-    chosen = bin;
-    if (fahrenheit <= bin.high) break;
+const temperatureStops = (() => {
+  const unique = new Map<number, Rgba>();
+  for (const bin of temperaturePalette?.bins ?? []) {
+    const value = temperatureStopValue(bin); if (value === null) continue;
+    const [r = 0, g = 0, b = 0, a = 255] = bin.rgba;
+    unique.set(value, [r, g, b, a]);
   }
-  return chosen.css;
+  return [...unique.entries()].map(([value, rgba]) => ({ value, rgba })).sort((a, b) => a.value - b.value);
+})();
+
+function temperatureRgba(fahrenheit: number): Rgba {
+  if (!temperatureStops.length) return [68, 124, 178, 255];
+  if (fahrenheit <= temperatureStops[0].value) return temperatureStops[0].rgba;
+  for (let i = 1; i < temperatureStops.length; i++) {
+    const lower = temperatureStops[i - 1], upper = temperatureStops[i];
+    if (fahrenheit > upper.value) continue;
+    const span = upper.value - lower.value;
+    const t = span > 0 ? Math.max(0, Math.min(1, (fahrenheit - lower.value) / span)) : 1;
+    return lower.rgba.map((value, index) => Math.round(value + (upper.rgba[index] - value) * t)) as Rgba;
+  }
+  return temperatureStops[temperatureStops.length - 1].rgba;
+}
+
+const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+function transparentTemperatureField(): TemperatureFieldImage {
+  return { url: transparentPixel, coordinates: [[-180, 85], [180, 85], [180, -85], [-180, -85]] };
+}
+
+function buildTemperatureFieldImage(map: WeatherMap, observations: Observation[]): TemperatureFieldImage | null {
+  const valid = observations.filter((o): o is Observation & { temperature: number } => o.temperature !== null);
+  if (valid.length < 2 || map.getZoom() < 4 || typeof document === 'undefined') return null;
+
+  const bounds = map.getBounds(), west = bounds.getWest(), east = bounds.getEast(), south = bounds.getSouth(), north = bounds.getNorth();
+  if (!(west < east && south < north)) return null;
+
+  const mapCanvas = map.getCanvas();
+  const displayWidth = Math.max(1, mapCanvas.clientWidth || mapCanvas.width || 1280);
+  const displayHeight = Math.max(1, mapCanvas.clientHeight || mapCanvas.height || 720);
+  const width = Math.max(128, Math.min(256, Math.round(112 + map.getZoom() * 12)));
+  const height = Math.max(72, Math.min(192, Math.round(width * displayHeight / displayWidth)));
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const context = canvas.getContext('2d'); if (!context) return null;
+  const image = context.createImageData(width, height);
+
+  const lonSpan = east - west, latSpan = north - south;
+  const maxDistance = Math.max(lonSpan * .45, latSpan * .65, .55);
+  for (let y = 0; y < height; y++) {
+    const lat = north - (y + .5) / height * latSpan;
+    const cos = Math.cos(lat * Math.PI / 180);
+    for (let x = 0; x < width; x++) {
+      const lng = west + (x + .5) / width * lonSpan;
+      let weighted = 0, weights = 0, nearest = Infinity;
+      for (const observation of valid) {
+        const distance = Math.hypot((observation.lng - lng) * cos, observation.lat - lat);
+        nearest = Math.min(nearest, distance);
+        if (distance > maxDistance) continue;
+        const weight = 1 / Math.pow(Math.max(.015, distance), 1.7);
+        weighted += (observation.temperature * 9 / 5 + 32) * weight;
+        weights += weight;
+      }
+      const offset = (y * width + x) * 4;
+      if (!weights || nearest > maxDistance) {
+        image.data[offset + 3] = 0;
+        continue;
+      }
+      const rgba = temperatureRgba(weighted / weights);
+      image.data[offset] = rgba[0];
+      image.data[offset + 1] = rgba[1];
+      image.data[offset + 2] = rgba[2];
+      image.data[offset + 3] = rgba[3];
+    }
+  }
+
+  context.putImageData(image, 0, 0);
+  return {
+    url: canvas.toDataURL('image/png'),
+    coordinates: [[west, north], [east, north], [east, south], [west, south]],
+  };
 }
 
 function emptyFeatureCollection() { return { type: 'FeatureCollection' as const, features: [] as any[] }; }
-
-function buildTemperatureField(map: WeatherMap, observations: Observation[]) {
-  const valid = observations.filter(o => o.temperature !== null);
-  if (valid.length < 2 || map.getZoom() < 4) return emptyFeatureCollection();
-  const bounds = map.getBounds(), west = bounds.getWest(), east = bounds.getEast(), south = bounds.getSouth(), north = bounds.getNorth();
-  if (!(west < east && south < north)) return emptyFeatureCollection();
-  const zoom = map.getZoom(), cols = Math.max(32, Math.min(84, Math.round(26 + zoom * 4.5)));
-  const lonSpan = east - west, latSpan = north - south, midLat = (south + north) / 2;
-  const ratio = Math.max(.35, Math.min(1.7, Math.abs(latSpan / Math.max(.01, lonSpan * Math.cos(midLat * Math.PI / 180)))));
-  const rows = Math.max(18, Math.min(64, Math.round(cols * ratio)));
-  const dx = lonSpan / cols, dy = latSpan / rows, maxDistance = Math.max(lonSpan * .45, latSpan * .65, .55);
-  const features: any[] = [];
-  for (let y = 0; y < rows; y++) {
-    const y0 = south + y * dy, y1 = y0 + dy, lat = (y0 + y1) / 2, cos = Math.cos(lat * Math.PI / 180);
-    for (let x = 0; x < cols; x++) {
-      const x0 = west + x * dx, x1 = x0 + dx, lng = (x0 + x1) / 2;
-      const nearest = valid.map(o => {
-        const d = Math.hypot((o.lng - lng) * cos, o.lat - lat);
-        return { o, d };
-      }).sort((a, b) => a.d - b.d).slice(0, 9);
-      if (!nearest.length || nearest[0].d > maxDistance) continue;
-      let weighted = 0, weights = 0;
-      for (const { o, d } of nearest) {
-        const weight = 1 / Math.pow(Math.max(.015, d), 1.7);
-        weighted += (o.temperature! * 9 / 5 + 32) * weight; weights += weight;
-      }
-      if (!weights) continue;
-      const tempF = weighted / weights;
-      features.push({
-        type: 'Feature',
-        geometry: { type: 'Polygon', coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]] },
-        properties: { tempF, color: temperatureColor(tempF) },
-      });
-    }
-  }
-  return { type: 'FeatureCollection' as const, features };
-}
 
 export class CurrentWeatherController {
   private map: WeatherMap | null = null;
@@ -131,6 +162,7 @@ export class CurrentWeatherController {
 
   select(scene: string, product: Product, options: Options, apiKey: string) {
     const previousMrmsEnabled = this.options.mrmsEnabled;
+    const previousSweepsEnabled = this.options.sweepsEnabled;
     const reload = scene !== this.scene || product !== this.product || apiKey !== this.apiKey;
     this.scene = scene; this.product = product; this.options = options; this.apiKey = apiKey;
     if (reload) void this.start();
@@ -139,6 +171,9 @@ export class CurrentWeatherController {
       void this.manager?.setUnits(options.units).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update weather units' }));
       if (options.mrmsEnabled !== previousMrmsEnabled && this.product === 'radar') {
         void this.manager?.setMRMSEnabled?.(options.mrmsEnabled).catch(() => this.emit({ message: 'Unable to update the MRMS backup layer' }));
+      }
+      if (options.sweepsEnabled !== previousSweepsEnabled && this.product === 'radar') {
+        void this.manager?.setSweepsEnabled?.(options.sweepsEnabled).catch(() => this.emit({ message: 'Unable to update radar sweep animation' }));
       }
       this.drawObservations();
     }
@@ -163,8 +198,9 @@ export class CurrentWeatherController {
     if (!map) { this.emit({ status: 'loading', message: 'Waiting for geographic map' }); return; }
 
     if (this.product === 'observations') {
-      map.addSource(temperatureFieldSourceId, { type: 'geojson', data: emptyFeatureCollection() });
-      map.addLayer({ id: temperatureFieldLayerId, type: 'fill', source: temperatureFieldSourceId, paint: { 'fill-color': ['get', 'color'], 'fill-opacity': Math.min(.68, this.options.opacity * .72), 'fill-antialias': true } }, this.anchor);
+      const initialField = transparentTemperatureField();
+      map.addSource(temperatureFieldSourceId, { type: 'image', url: initialField.url, coordinates: initialField.coordinates });
+      map.addLayer({ id: temperatureFieldLayerId, type: 'raster', source: temperatureFieldSourceId, paint: { 'raster-opacity': Math.min(.68, this.options.opacity * .72), 'raster-fade-duration': 0, 'raster-resampling': 'linear' } }, this.anchor);
       map.addSource(observationSourceId, { type: 'geojson', data: emptyFeatureCollection(), attribution: 'NOAA / National Weather Service observations' });
       map.addLayer({
         id: observationLayerId, type: 'symbol', source: observationSourceId,
@@ -185,7 +221,7 @@ export class CurrentWeatherController {
     let manager: WeatherManager | null = null;
     try {
       manager = await this.factory(map, {
-        product: this.product, anchor: this.anchor, opacity: this.options.opacity, mrmsEnabled: this.options.mrmsEnabled,
+        product: this.product, anchor: this.anchor, opacity: this.options.opacity, mrmsEnabled: this.options.mrmsEnabled, sweepsEnabled: this.options.sweepsEnabled,
         onError: message => { if (generation === this.generation) { this.networkFailed = true; this.emit({ status: 'unavailable', message }); } },
         onNotice: message => { if (generation === this.generation) this.emit({ message }); },
       });
@@ -249,9 +285,11 @@ export class CurrentWeatherController {
       return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [o.lng, o.lat] }, properties: { label } }];
     });
     (this.map.getSource(observationSourceId) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-    (this.map.getSource(temperatureFieldSourceId) as GeoJSONSource | undefined)?.setData(buildTemperatureField(this.map, observations));
+    const field = buildTemperatureFieldImage(this.map, observations) ?? transparentTemperatureField();
+    const fieldSource = this.map.getSource(temperatureFieldSourceId) as any;
+    if (typeof fieldSource?.updateImage === 'function') fieldSource.updateImage(field);
     if (this.map.getLayer(observationLayerId)) this.map.setPaintProperty(observationLayerId, 'text-opacity', this.options.opacity);
-    if (this.map.getLayer(temperatureFieldLayerId)) this.map.setPaintProperty(temperatureFieldLayerId, 'fill-opacity', Math.min(.68, this.options.opacity * .72));
+    if (this.map.getLayer(temperatureFieldLayerId)) this.map.setPaintProperty(temperatureFieldLayerId, 'raster-opacity', Math.min(.68, this.options.opacity * .72));
     if (observations.length) {
       const states = observations.map(o => freshness(o.time, 90, o.cached));
       const status = states.includes('unavailable') ? 'unavailable' : states.includes('stale') ? 'stale' : states.includes('cached') ? 'cached' : 'fresh';

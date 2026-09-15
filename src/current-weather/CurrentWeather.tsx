@@ -11,7 +11,7 @@ export function useCurrentWeather() { const value = useContext(Context); if (!va
 export function CurrentWeatherProvider({ sceneId, product, children }: { sceneId: string; product: Product; children: ReactNode }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot), [settings, setSettings] = useState<Record<string, Options>>({});
   const controller = useMemo(() => new CurrentWeatherController(setSnapshot), []), options = settings[sceneId] ?? defaultOptions();
-  useLayoutEffect(() => { controller.select(sceneId, product, options, ''); }, [controller, sceneId, product, options.units, options.opacity, options.loop, options.mrmsEnabled]);
+  useLayoutEffect(() => { controller.select(sceneId, product, options, ''); }, [controller, sceneId, product, options.units, options.opacity, options.loop, options.mrmsEnabled, options.sweepsEnabled]);
   useEffect(() => () => controller.destroy(), [controller]);
   return <Context.Provider value={{ product, snapshot, options, controller, edit: patch => setSettings(old => ({ ...old, [sceneId]: { ...(old[sceneId] ?? defaultOptions()), ...patch } })) }}>{children}</Context.Provider>;
 }
@@ -46,6 +46,7 @@ export function WeatherControls() {
         {!snapshot.activeRadarIds.length && <small>No site sweeps active</small>}
       </div>
       <small className="wx-radar-hint">Click radar towers on the map to toggle up to 3 sweeps.</small>
+      <label><input type="checkbox" checked={options.sweepsEnabled} onChange={e => edit({ sweepsEnabled: e.target.checked })} /> Radar sweep animation</label>
       <label><input type="checkbox" checked={options.mrmsEnabled} onChange={e => edit({ mrmsEnabled: e.target.checked })} /> MRMS backup mosaic</label>
       <label>Radar opacity<input aria-label="Radar opacity" type="range" min="0" max="100" value={Math.round(options.opacity * 100)} onChange={e => edit({ opacity: Number(e.target.value) / 100 })} /></label>
       <button type="button" onClick={() => void controller.refresh()}>Refresh radar</button>

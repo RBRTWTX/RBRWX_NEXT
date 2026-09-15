@@ -260,7 +260,10 @@ export function radarImageRequest(siteId: string, layer: string, time: number, b
   return u.href;
 }
 
-export interface RadarImageryOptions extends PublicImageryOptions { product: 'radar'; mrmsEnabled?: boolean; onNotice?: (message: string) => void }
+// VCP 12 low-elevation surveillance/reflectivity pass: 21.459 deg/s = 3.58 RPM.
+const WSR88D_REFLECTIVITY_SWEEP_RPM = 3.58;
+
+export interface RadarImageryOptions extends PublicImageryOptions { product: 'radar'; mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
 
 type RadarSiteRuntime = { layer: string; times: number[]; selected: number | null; activeLayer: string | null; serial: number };
 
@@ -276,6 +279,7 @@ export class RadarImagery {
   private moveTimer: ReturnType<typeof setTimeout> | null = null;
   private sweepTimer: ReturnType<typeof setInterval> | null = null;
   private sweepAngle = 0;
+  private sweepsEnabled: boolean;
   private opacity: number;
   private paletteFallbackSites = new Set<string>();
   private prefix = `rbrwx-radar-${Math.random().toString(36).slice(2)}`;
@@ -288,7 +292,7 @@ export class RadarImagery {
   private sweepLineLayer = `${this.prefix}-sweep-lines`;
   private clickHandler: ((event: any) => void) | null = null;
 
-  constructor(private map: WeatherMap, private options: RadarImageryOptions) { this.opacity = options.opacity; }
+  constructor(private map: WeatherMap, private options: RadarImageryOptions) { this.opacity = options.opacity; this.sweepsEnabled = options.sweepsEnabled !== false; }
   on(_event: string, listener: (state: Record<string, unknown>) => void) { this.listener = listener; }
   private emit() {
     const primary = this.activeIds[0] ?? null, runtime = primary ? this.runtimes.get(primary) : undefined;
@@ -302,7 +306,8 @@ export class RadarImagery {
     this.sites = await fetchRadarSites(this.lifetime.signal);
     this.installRadarSiteLayers();
     this.map.on('moveend', this.move); this.map.on('resize', this.move);
-    this.startSweep(); this.emit();
+    if (this.sweepsEnabled) this.startSweep(); else this.updateSweepSource();
+    this.emit();
     if (this.options.mrmsEnabled) await this.setMRMSEnabled(true);
     await this.refreshData();
   }
@@ -357,7 +362,7 @@ export class RadarImagery {
     }, this.options.anchor);
     this.map.addSource(this.sweepSource, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     this.map.addLayer({ id: this.sweepFillLayer, type: 'fill', source: this.sweepSource, filter: ['==', ['get', 'kind'], 'wedge'], paint: { 'fill-color': '#67f4ff', 'fill-opacity': .10 } }, this.markerLayer);
-    this.map.addLayer({ id: this.sweepLineLayer, type: 'line', source: this.sweepSource, filter: ['!=', ['get', 'kind'], 'wedge'], paint: { 'line-color': ['case', ['==', ['get', 'kind'], 'beam'], '#a9fbff', '#5ec8d8'], 'line-width': ['case', ['==', ['get', 'kind'], 'beam'], 2, 1], 'line-opacity': ['case', ['==', ['get', 'kind'], 'beam'], .82, .32] } }, this.markerLayer);
+    this.map.addLayer({ id: this.sweepLineLayer, type: 'line', source: this.sweepSource, filter: ['==', ['get', 'kind'], 'beam'], paint: { 'line-color': '#a9fbff', 'line-width': 2, 'line-opacity': .82 } }, this.markerLayer);
     this.clickHandler = (event: any) => {
       const features = this.map.queryRenderedFeatures(event.point, { layers: [this.markerLabelLayer, this.markerLayer] });
       const id = String(features?.[0]?.properties?.id ?? '');
@@ -389,12 +394,13 @@ export class RadarImagery {
 
   private updateSweepSource() {
     const features: any[] = [];
+    if (!this.sweepsEnabled) {
+      (this.map.getSource(this.sweepSource) as any)?.setData({ type: 'FeatureCollection', features });
+      return;
+    }
     for (const id of this.activeIds) {
       const site = this.sites.find(s => s.id === id); if (!site) continue;
-      const ring: [number, number][] = [];
-      for (let b = 0; b <= 360; b += 6) ring.push(this.destination(site.lng, site.lat, b, 230));
       const left = this.destination(site.lng, site.lat, this.sweepAngle - 4, 230), right = this.destination(site.lng, site.lat, this.sweepAngle + 4, 230), tip = this.destination(site.lng, site.lat, this.sweepAngle, 230);
-      features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: ring }, properties: { kind: 'ring', id } });
       features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [[site.lng, site.lat], tip] }, properties: { kind: 'beam', id } });
       features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[site.lng, site.lat], left, tip, right, [site.lng, site.lat]]] }, properties: { kind: 'wedge', id } });
     }
@@ -402,7 +408,20 @@ export class RadarImagery {
   }
 
   private startSweep() {
-    this.sweepTimer = setInterval(() => { this.sweepAngle = (this.sweepAngle + 3) % 360; this.updateSweepSource(); }, 75);
+    if (this.sweepTimer) clearInterval(this.sweepTimer);
+    const origin = this.sweepAngle, started = Date.now();
+    const degreesPerMillisecond = WSR88D_REFLECTIVITY_SWEEP_RPM * 360 / 60000;
+    this.sweepTimer = setInterval(() => {
+      this.sweepAngle = (origin + (Date.now() - started) * degreesPerMillisecond) % 360;
+      this.updateSweepSource();
+    }, 100);
+  }
+
+  async setSweepsEnabled(enabled: boolean) {
+    this.sweepsEnabled = enabled;
+    if (this.sweepTimer) { clearInterval(this.sweepTimer); this.sweepTimer = null; }
+    if (enabled) this.startSweep();
+    this.updateSweepSource();
   }
 
   private move = () => {

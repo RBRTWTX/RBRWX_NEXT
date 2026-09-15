@@ -11,7 +11,7 @@ import {
 import { RBRWX_INITIAL_RUNDOWN_SCENE_IDS, RBRWX_SCENE_CATALOG } from './sceneCatalog';
 import './broadcastHost.css';
 import { GraphicsHost, GraphicsOverlay, GraphicsControls } from './GraphicsHost';
-import { CurrentSceneHeading, CurrentWeatherHost, CurrentProductSelector, WeatherControls, WeatherPlayback, WeatherStatus, WeatherMapConnection } from './CurrentWeatherHost';
+import { CurrentWeatherHost, CurrentProductSelector, WeatherControls, WeatherPlayback, WeatherStatus, WeatherMapConnection } from './CurrentWeatherHost';
 
 const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
   roads: true,
@@ -40,6 +40,7 @@ export function RbrwxBroadcastWorkspace() {
   const [health, setHealth] = useState<MapHealth>('starting');
   const [healthMessage, setHealthMessage] = useState('Initializing renderer…');
   const [camera, setCamera] = useState({ zoom: 8.35, lng: -98.78, lat: 29.43 });
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
 
   const zoomLabel = useMemo(() => camera.zoom.toFixed(1), [camera.zoom]);
 
@@ -79,7 +80,12 @@ export function RbrwxBroadcastWorkspace() {
           </div>
         </header>
 
-        <SceneLibrary />
+        <div className="scene-library-stack">
+          <SceneLibrary />
+          <div className="scene-library-product-selector">
+            <CurrentProductSelector />
+          </div>
+        </div>
 
         <section className="map-stage">
           <GraphicsOverlay />
@@ -94,20 +100,31 @@ export function RbrwxBroadcastWorkspace() {
             }}
             onCameraChange={setCamera}
           />}</WeatherMapConnection>
-          <WeatherStatus />
 
-          <div className="map-title-card">
-            <span className="map-title-card__kicker">RBRWX NEXT</span>
-            <CurrentSceneHeading satellite={basemapMode === 'satellite'} />
-          </div>
-
-          <div className="map-health-message">{healthMessage}</div>
         </section>
 
         <aside className="control-panel">
-          <CurrentProductSelector />
           <WeatherControls />
           <GraphicsControls />
+          <button
+            className={`layer-toggle ${diagnosticsOpen ? 'layer-toggle--on' : ''}`}
+            type="button"
+            aria-expanded={diagnosticsOpen}
+            onClick={() => setDiagnosticsOpen(value => !value)}
+          >
+            <span className="layer-toggle__lamp" />
+            <span>SETTINGS</span>
+            <b>{diagnosticsOpen ? 'OPEN' : 'CLOSED'}</b>
+          </button>
+          {diagnosticsOpen && (
+            <div className="operator-diagnostics">
+              <strong>DIAGNOSTICS</strong>
+              <span>Map: {healthLabel[health]}</span>
+              <span>{healthMessage}</span>
+              <WeatherStatus />
+            </div>
+          )}
+          <div className="panel-divider" />
           <div className="panel-heading">
             <span>BASEMAP</span>
             <small>existing map control</small>
