@@ -30,6 +30,10 @@ export const RBRWX_SCENE_CATALOG: readonly BroadcastSceneDefinition[] = [
   { id: 'graphic-weekend', title: 'Weekend', subtitle: 'Saturday and Sunday forecast', category: 'FORECAST', contentKey: 'graphic.weekend', defaultHoldMs: 12000 },
   { id: 'graphic-need-to-know', title: 'Need to Know', subtitle: 'Editable on-air message board', category: 'GRAPHIC', contentKey: 'graphic.need-to-know', defaultHoldMs: 14000 },
   { id: 'graphic-blank', title: 'Blank Canvas', subtitle: 'Custom text, icons, PNG and SVG graphic', category: 'GRAPHIC', contentKey: 'graphic.blank', defaultHoldMs: 12000 },
+  { id: 'qpf-day1', title: 'QPF Day 1', subtitle: 'WPC 24-hour quantitative precipitation forecast', category: 'QPF', contentKey: 'qpf.day1', defaultHoldMs: 10000 },
+  { id: 'qpf-day2', title: 'QPF Day 2', subtitle: 'WPC 24-hour quantitative precipitation forecast', category: 'QPF', contentKey: 'qpf.day2', defaultHoldMs: 10000 },
+  { id: 'qpf-day3', title: 'QPF Day 3', subtitle: 'WPC 24-hour quantitative precipitation forecast', category: 'QPF', contentKey: 'qpf.day3', defaultHoldMs: 10000 },
+  { id: 'qpf-day7', title: 'QPF 7-Day Total', subtitle: 'WPC 168-hour quantitative precipitation forecast', category: 'QPF', contentKey: 'qpf.day7', defaultHoldMs: 12000 },
 ];
 
 export const RBRWX_INITIAL_RUNDOWN_SCENE_IDS = ['base-broadcast-map'] as const;

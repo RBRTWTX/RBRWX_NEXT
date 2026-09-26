@@ -21,8 +21,8 @@ export function CurrentWeatherHost({ children }: { children: ReactNode }) {
 
 export function CurrentProductSelector() {
   const { programScene, takeScene } = useBroadcast();
-  const graphic = Boolean(programScene?.contentKey.startsWith('graphic.'));
-  const active = graphic ? null : productForContent(programScene?.contentKey);
+  const nonWeatherScene = Boolean(programScene?.contentKey.startsWith('graphic.') || programScene?.contentKey.startsWith('qpf.'));
+  const active = nonWeatherScene ? null : productForContent(programScene?.contentKey);
   return <div className="wx-product-selector" aria-label="Exclusive weather product">{([
     ['map', 'MAP', 'base-broadcast-map'],
     ['observations', 'CURRENT', 'current-observations'],

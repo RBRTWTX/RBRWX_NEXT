@@ -29,7 +29,7 @@
     "src-tauri/capabilities/default.json": "3f134e2488c94f0ef380b9b56609ef334aaefd9e15a8e0bee42c65d19dc7dbcb",
     "src-tauri/src/lib.rs": "3144ae6c8e1bc4fbb39424ee85400b37ef15ce37a80c1e98ad4382d9449d6975",
     "src-tauri/src/main.rs": "f4848fc5dcd1b44eb5c1f502a3193e61d6707656545f5862585a31b5ef2e58b2",
-    "src-tauri/tauri.conf.json": "b6defc114f6416eaf66f7fbcda2e3d3b9407afd6b0afa53af80aafbbfb39dac6",
+    "src-tauri/tauri.conf.json": "d1f160f9d08a3fe682260ffd458dfd99e387504fd91ccd69153a0bb16f17c5f9",
     "tsconfig.app.json": "afb0085f8ede98758d32bee3ae7a4cb34c27bae107d53698755320f130f94f0d",
     "tsconfig.json": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808",
     "tsconfig.node.json": "0608fbfd459bd32862f65259916d301fd179a37b5e11c479897f2b0906af57b1",

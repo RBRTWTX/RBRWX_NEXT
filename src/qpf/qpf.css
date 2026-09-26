@@ -1,0 +1,5 @@
+.rbrwx-broadcast-workspace .qpf-controls { display: grid; gap: 8px; }
+.rbrwx-broadcast-workspace .qpf-controls label { display: grid; gap: 5px; color: #b5babf; font: 8px Arial,sans-serif; }
+.rbrwx-broadcast-workspace .qpf-controls input[type="range"] { width: 100%; }
+.rbrwx-broadcast-workspace .qpf-controls button { min-height: 27px; padding: 0 7px; color: #dce2e6; background: #333638; border: 1px solid #555a5d; border-radius: 2px; font: 700 8px Arial,sans-serif; cursor: pointer; }
+.rbrwx-broadcast-workspace .qpf-status { color: #9fa8ae; font: 8px Arial,sans-serif; }

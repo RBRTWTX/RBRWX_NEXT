@@ -69,7 +69,7 @@ for (const relative of mapFiles) {
   if (hasDynamicNonliteral) continue;
   for (const spec of specs) {
     const resolved = normalizeResolvedImport(relative, spec);
-    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics'))) fail(`${relative} imports workstation/graphic code via ${spec}; map must remain independent.`);
+    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf'))) fail(`${relative} imports workstation/graphic code via ${spec}; map must remain independent.`);
   }
 }
 
@@ -79,7 +79,21 @@ for (const relative of currentWeatherFiles) {
   if (hasDynamicNonliteral) continue;
   for (const spec of specs) {
     const resolved = normalizeResolvedImport(relative, spec);
-    if (resolved && isWithin(resolved, 'src/forecast-graphics')) fail(`${relative} imports non-map graphic code via ${spec}; current weather must remain independent.`);
+    if (resolved && (isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf'))) fail(`${relative} imports workstation extension code via ${spec}; current weather must remain independent.`);
+  }
+}
+
+const qpfFiles = await listFiles('src/qpf', ['.ts', '.tsx']);
+for (const relative of qpfFiles) {
+  const source = await read(relative); const { specs, hasDynamicNonliteral } = importSpecifiers(source, relative);
+  if (hasDynamicNonliteral) fail(`${relative} uses a non-literal dynamic import/require; QPF isolation cannot be proven.`);
+  for (const spec of specs) {
+    if (!spec.startsWith('.')) {
+      if (!['react', 'maplibre-gl', 'geojson'].includes(spec) && !spec.startsWith('react/')) fail(`${relative} imports unexpected external module ${spec}.`);
+      continue;
+    }
+    const resolved = normalizeResolvedImport(relative, spec);
+    if (resolved && !isWithin(resolved, 'src/qpf')) fail(`${relative} imports outside src/qpf via ${spec}.`);
   }
 }
 
@@ -88,7 +102,7 @@ const originalApp = await read('src/app/App.tsx');
   const { specs } = importSpecifiers(originalApp, 'src/app/App.tsx');
   for (const spec of specs) {
     const resolved = normalizeResolvedImport('src/app/App.tsx', spec);
-    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics'))) fail(`src/app/App.tsx imports standalone workstation code via ${spec}; the original working App must remain independent.`);
+    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf'))) fail(`src/app/App.tsx imports standalone workstation code via ${spec}; the original working App must remain independent.`);
   }
 }
 
@@ -106,7 +120,7 @@ for (const relative of hostFiles) {
     }
     const resolved = normalizeResolvedImport(relative, spec);
     if (!resolved) continue;
-    const allowed = isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/map') || isWithin(resolved, 'src/broadcast-graphics') || isWithin(resolved, 'src/current-weather') || isWithin(resolved, 'src/forecast-graphics');
+    const allowed = isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/map') || isWithin(resolved, 'src/broadcast-graphics') || isWithin(resolved, 'src/current-weather') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf');
     if (!allowed) fail(`${relative} imports outside the allowed host boundary via ${spec}.`);
   }
 }
@@ -122,10 +136,12 @@ for (const token of ["contentKey === 'map.broadcast'", "contentKey === 'map.sate
   if (!host.includes(token)) fail(`RBRWX host adapter is missing required behavior: ${token}`);
 }
 if (!host.includes('<ForecastGraphicsHost>') || !host.includes('<ForecastGraphicEditorStage')) fail('RBRWX host adapter is missing the non-map graphic host/stage.');
+if (!host.includes('<QpfHost>') || !host.includes('<QpfMapConnection>') || !host.includes('qpf: qpf.snapshot')) fail('RBRWX host adapter is missing the QPF map host/capture state.');
 
 assertScopedCss(await read('src/broadcast/broadcast.css'), 'src/broadcast/broadcast.css');
 assertScopedCss(await read('src/broadcast-host/broadcastHost.css'), 'src/broadcast-host/broadcastHost.css');
 assertScopedCss(await read('src/forecast-graphics/forecastGraphics.css'), 'src/forecast-graphics/forecastGraphics.css');
+assertScopedCss(await read('src/qpf/qpf.css'), 'src/qpf/qpf.css');
 
 const manifest = await readJson('scripts/broadcast/broadcast-package-file-manifest.json');
 if (manifest.schema !== 1 || manifest.release !== 'pre-0.3.0-broadcast-base-standalone') fail('Broadcast package manifest identity drifted.');
@@ -143,3 +159,4 @@ console.log(`  Broadcast core TS/TSX files: ${broadcastFiles.length}`);
 console.log(`  Host adapter TS/TSX files: ${hostFiles.length}`);
 console.log(`  Map files checked for reverse dependency: ${mapFiles.length}`);
 console.log(`  Current-weather files checked for reverse dependency: ${currentWeatherFiles.length}`);
+console.log(`  QPF module TS/TSX files: ${qpfFiles.length}`);

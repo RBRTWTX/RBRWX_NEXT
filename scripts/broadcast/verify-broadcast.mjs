@@ -13,6 +13,9 @@ function run(command, args) {
 run('node', ['scripts/broadcast/validate-broadcast-payload.mjs']);
 run('node', ['scripts/broadcast/validate-broadcast-package.mjs']);
 run('node', ['--test', 'scripts/broadcast/compiler-api.test.mjs', 'scripts/broadcast/broadcast-state.test.mjs']);
+// Validate the live WPC provider contract before expensive TS/Vite/native build work.
+run('node', ['scripts/qpf/verify.mjs']);
+run('node', ['scripts/qpf/verify-provider.mjs']);
 run('npm', ['run', 'typecheck']);
 run('npm', ['run', 'build']);
 console.log('RBRWX standalone Broadcast verification: PASS');
