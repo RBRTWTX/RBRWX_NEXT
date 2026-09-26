@@ -8,8 +8,18 @@ interface Model {
   visible: Record<Kind, boolean>; toggle: (kind: Kind) => void;
   layouts: Record<Kind, Layout>; position: (kind: Kind, layout: Layout) => void;
 }
+export interface GraphicsSnapshot {
+  scene: Scene | null;
+  copy: Copy;
+  visible: Record<Kind, boolean>;
+  layouts: Record<Kind, Layout>;
+}
 const Context = createContext<Model | null>(null);
 function useGraphics() { const value = useContext(Context); if (!value) throw new Error('Graphics provider missing'); return value; }
+export function useGraphicsSnapshot(): GraphicsSnapshot {
+  const { scene, copy, visible, layouts } = useGraphics();
+  return { scene, copy, visible, layouts };
+}
 export function GraphicsProvider({ scene, children, extraKeys = [] }: { scene: Scene | null; children: ReactNode; extraKeys?: readonly WeatherKey[] }) {
   const [copies, setCopies] = useState<Record<string, Copy>>({});
   const [visible, setVisible] = useState({ title: false, lower: false, ticker: false });
@@ -69,6 +79,31 @@ export function GraphicsOverlay() {
     </div>
   </div>;
 }
+
+function SnapshotBar({ kind, snapshot, extraKeys }: { kind: Kind; snapshot: GraphicsSnapshot; extraKeys: readonly WeatherKey[] }) {
+  const { scene, copy, layouts } = snapshot;
+  const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId, extraKeys) : undefined;
+  const layout = layouts[kind];
+  const [width, height] = sizes[kind];
+  const value = kind === 'title' ? titleText(scene, copy) : copy[kind];
+  return <div className={`wxg-bar wxg-${kind} wxg-static${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} style={{ left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})`, pointerEvents: 'none' }}>
+    <div className="wxg-text">{kind === 'ticker' ? <span className="wxg-crawl">{value}</span> : value}</div>
+    {weatherKey && <TitleKey value={weatherKey} />}
+  </div>;
+}
+
+export function GraphicsSnapshotOverlay({ snapshot, extraKeys = [] }: { snapshot: GraphicsSnapshot; extraKeys?: readonly WeatherKey[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 1920, h: 1080 });
+  useEffect(() => { const node = ref.current; if (!node) return; const update = () => setSize({ w: node.clientWidth, h: node.clientHeight }); update(); const observer = new ResizeObserver(update); observer.observe(node); return () => observer.disconnect(); }, []);
+  const scale = Math.max(.001, Math.min(size.w / 1920, size.h / 1080));
+  return <div className="wxg-overlay wxg-overlay--snapshot" ref={ref} data-title-visible={snapshot.visible.title}>
+    <div className="wxg-design" style={{ left: (size.w - 1920 * scale) / 2, top: (size.h - 1080 * scale) / 2, transform: `scale(${scale})` }}>
+      {(['title', 'lower', 'ticker'] as Kind[]).filter(kind => snapshot.visible[kind]).map(kind => <SnapshotBar key={`${snapshot.scene?.id}:${kind}`} kind={kind} snapshot={snapshot} extraKeys={extraKeys} />)}
+    </div>
+  </div>;
+}
+
 export function GraphicsControls() {
   const { scene, copy, edit, visible, toggle, layouts, position, extraKeys } = useGraphics();
   return <section className="wxg-menu" aria-label="Graphics">

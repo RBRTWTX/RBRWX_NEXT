@@ -26,13 +26,16 @@ import {
 setWorkerUrl(workerUrl);
 
 export type MapHealth = 'starting' | 'ready' | 'degraded' | 'failed';
+export interface BroadcastCameraState { zoom: number; lng: number; lat: number }
 
 interface BroadcastMapProps {
   onMapReady?: (map: MapLibreMap) => void | (() => void);
   basemapMode: BroadcastBasemapMode;
   visibility: Record<BroadcastLayerGroup, boolean>;
   onHealthChange: (health: MapHealth, message: string) => void;
-  onCameraChange?: (camera: { zoom: number; lng: number; lat: number }) => void;
+  onCameraChange?: (camera: BroadcastCameraState) => void;
+  camera?: BroadcastCameraState;
+  interactive?: boolean;
 }
 
 const HOME = {
@@ -56,7 +59,7 @@ function applyBasemapMode(map: MapLibreMap, activeMode: BroadcastBasemapMode): v
   }
 }
 
-export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCameraChange, onMapReady }: BroadcastMapProps) {
+export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCameraChange, onMapReady, camera, interactive = true }: BroadcastMapProps) {
   const mapReadyRef = useRef(onMapReady);
   mapReadyRef.current = onMapReady;
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -65,12 +68,15 @@ export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCamera
   const visibilityRef = useRef(visibility);
   const healthCallbackRef = useRef(onHealthChange);
   const cameraCallbackRef = useRef(onCameraChange);
+  const controlledCameraRef = useRef(camera);
+  const interactiveRef = useRef(interactive);
   const [ready, setReady] = useState(false);
 
   basemapModeRef.current = basemapMode;
   visibilityRef.current = visibility;
   healthCallbackRef.current = onHealthChange;
   cameraCallbackRef.current = onCameraChange;
+  controlledCameraRef.current = camera;
 
   useEffect(() => {
     assertBroadcastLayerSeparation();
@@ -100,14 +106,16 @@ export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCamera
       if (styleLoaded && initialCountyResolved) healthCallbackRef.current('ready', 'Broadcast geographic sources and authoritative county sources loaded.');
     };
 
+    const initialCamera = controlledCameraRef.current;
     const map = new MapLibreMap({
       container,
-      center: HOME.center,
-      zoom: HOME.zoom,
+      center: initialCamera ? [initialCamera.lng, initialCamera.lat] : HOME.center,
+      zoom: initialCamera?.zoom ?? HOME.zoom,
       minZoom: 2.5,
       maxZoom: 18,
       pitch: 0,
       bearing: 0,
+      interactive: interactiveRef.current,
       renderWorldCopies: false,
       attributionControl: false,
       canvasContextAttributes: { antialias: true },
@@ -239,6 +247,14 @@ export function BroadcastMap({ basemapMode, visibility, onHealthChange, onCamera
       applyVisibility(map, group, visible);
     }
   }, [ready, visibility]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !camera) return;
+    const center = map.getCenter();
+    if (Math.abs(center.lng - camera.lng) < 0.00001 && Math.abs(center.lat - camera.lat) < 0.00001 && Math.abs(map.getZoom() - camera.zoom) < 0.001) return;
+    map.jumpTo({ center: [camera.lng, camera.lat], zoom: camera.zoom });
+  }, [camera, ready]);
 
   return <div ref={containerRef} className="broadcast-map" aria-label="RBRWX broadcast map" />;
 }
