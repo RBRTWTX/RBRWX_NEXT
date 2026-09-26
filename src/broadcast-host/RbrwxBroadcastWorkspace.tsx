@@ -26,6 +26,16 @@ import {
 import { useCurrentWeather } from '../current-weather/CurrentWeather';
 import { CurrentWeatherController } from '../current-weather/controller';
 import { defaultOptions, initialSnapshot, type Options, type Product, type Snapshot } from '../current-weather/model';
+import {
+  ForecastGraphicsHost,
+  ForecastGraphicEditorStage,
+  ForecastGraphicSnapshotStage,
+  ForecastGraphicProperties,
+  ForecastGraphicTools,
+  ForecastGraphicObjectList,
+  useForecastGraphics,
+  type ForecastGraphicsSnapshot,
+} from './ForecastGraphicsHost';
 
 const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
   roads: true,
@@ -60,6 +70,7 @@ interface CapturePresentationState {
   camera: CameraState;
   weather: CaptureWeatherState;
   graphics: GraphicsSnapshot;
+  forecastGraphics: ForecastGraphicsSnapshot;
   hiddenMenuAvailable: boolean;
 }
 
@@ -83,9 +94,10 @@ function timeLabel(value: number | null): string {
 
 function CanvasTimeline() {
   const { product, snapshot, controller } = useCurrentWeather();
-  const times = snapshot.times;
-  const selected = snapshot.selectedTime;
-  const animated = product === 'radar' || product === 'satellite';
+  const forecast = useForecastGraphics();
+  const times = forecast.active ? [] : snapshot.times;
+  const selected = forecast.active ? null : snapshot.selectedTime;
+  const animated = !forecast.active && (product === 'radar' || product === 'satellite');
   const markers = times.length > 24
     ? times.filter((_, index) => index === 0 || index === times.length - 1 || index % Math.ceil(times.length / 22) === 0)
     : times;
@@ -95,8 +107,8 @@ function CanvasTimeline() {
 
   return <section className="operator-timeline" aria-label="Canvas timeline">
     <div className="operator-timeline__readout">
-      <b>{animated ? 'FRAME' : 'LIVE'}</b>
-      <span>{timeLabel(selected ?? snapshot.time)}</span>
+      <b>{forecast.active ? 'GRAPHIC' : animated ? 'FRAME' : 'LIVE'}</b>
+      <span>{forecast.active ? 'STATIC' : timeLabel(selected ?? snapshot.time)}</span>
     </div>
     <div className="operator-timeline__track" aria-label={animated ? 'Weather frame timeline' : 'Static scene timeline'}>
       <div className="operator-timeline__rail" />
@@ -115,8 +127,8 @@ function CanvasTimeline() {
       {!animated && <span className="operator-timeline__static-marker" />}
     </div>
     <div className="operator-timeline__range">
-      <span>{timeLabel(start)}</span>
-      <span>{timeLabel(end)}</span>
+      <span>{forecast.active ? forecast.title.toUpperCase() : timeLabel(start)}</span>
+      <span>{forecast.active ? 'NON-MAP SCENE' : timeLabel(end)}</span>
     </div>
   </section>;
 }
@@ -160,6 +172,7 @@ function CanvasHiddenMenu({
 
 function OperatorTransport({ onPopout }: { onPopout: () => void }) {
   const broadcast = useBroadcast();
+  const forecast = useForecastGraphics();
   const playing = broadcast.state.transport === 'playing';
   return <section className="operator-transport" aria-label="Operator transport">
     <div className="operator-transport__show">
@@ -170,7 +183,7 @@ function OperatorTransport({ onPopout }: { onPopout: () => void }) {
       <button className="operator-transport__take" type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE</button>
     </div>
     <div className="operator-transport__weather">
-      <WeatherPlayback />
+      {forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : <WeatherPlayback />}
     </div>
     <button className="operator-popout" type="button" onClick={onPopout}>POP OUT CANVAS</button>
   </section>;
@@ -244,6 +257,7 @@ function ContextDock({
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
   const graphics = useGraphicsSnapshot();
+  const forecast = useForecastGraphics();
 
   return <aside className="control-panel operator-context-dock">
     <div className="operator-context-tabs">
@@ -254,16 +268,18 @@ function ContextDock({
 
     <div className="operator-context-body">
       {tab === 'properties' && <>
-        <WeatherControls />
-        <div className="panel-divider" />
-        <div className="panel-heading"><span>BASEMAP</span><small>scene presentation</small></div>
-        {(['broadcast', 'satellite'] as BroadcastBasemapMode[]).map(mode => <button
-          key={mode}
-          className={`layer-toggle ${basemapMode === mode ? 'layer-toggle--on' : ''}`}
-          type="button"
-          aria-pressed={basemapMode === mode}
-          onClick={() => setBasemapMode(mode)}
-        ><span className="layer-toggle__lamp" /><span>{mode === 'satellite' ? 'SATELLITE' : 'MAP'}</span><b>{basemapMode === mode ? 'ON' : 'OFF'}</b></button>)}
+        {forecast.active ? <ForecastGraphicProperties /> : <>
+          <WeatherControls />
+          <div className="panel-divider" />
+          <div className="panel-heading"><span>BASEMAP</span><small>scene presentation</small></div>
+          {(['broadcast', 'satellite'] as BroadcastBasemapMode[]).map(mode => <button
+            key={mode}
+            className={`layer-toggle ${basemapMode === mode ? 'layer-toggle--on' : ''}`}
+            type="button"
+            aria-pressed={basemapMode === mode}
+            onClick={() => setBasemapMode(mode)}
+          ><span className="layer-toggle__lamp" /><span>{mode === 'satellite' ? 'SATELLITE' : 'MAP'}</span><b>{basemapMode === mode ? 'ON' : 'OFF'}</b></button>)}
+        </>}
         <div className="panel-divider" />
         <div className="panel-heading"><span>SCENE TRANSITION</span><small>existing broadcast control</small></div>
         <label className="operator-property-field">Transition
@@ -295,13 +311,15 @@ function ContextDock({
       {tab === 'palettes' && <GraphicsControls />}
 
       {tab === 'tools' && <>
-        <div className="panel-heading"><span>MAP APPEARANCE</span><small>reference layers</small></div>
-        {(Object.keys(visibility) as BroadcastLayerGroup[]).map(group => <button
-          key={group}
-          className={`layer-toggle ${visibility[group] ? 'layer-toggle--on' : ''}`}
-          type="button"
-          onClick={() => toggle(group)}
-        ><span className="layer-toggle__lamp" /><span>{group.toUpperCase()}</span><b>{visibility[group] ? 'ON' : 'OFF'}</b></button>)}
+        {forecast.active ? <ForecastGraphicTools /> : <>
+          <div className="panel-heading"><span>MAP APPEARANCE</span><small>reference layers</small></div>
+          {(Object.keys(visibility) as BroadcastLayerGroup[]).map(group => <button
+            key={group}
+            className={`layer-toggle ${visibility[group] ? 'layer-toggle--on' : ''}`}
+            type="button"
+            onClick={() => toggle(group)}
+          ><span className="layer-toggle__lamp" /><span>{group.toUpperCase()}</span><b>{visibility[group] ? 'ON' : 'OFF'}</b></button>)}
+        </>}
         <div className="panel-divider" />
         <div className="panel-heading"><span>CANVAS</span><small>operator-only controls</small></div>
         <button
@@ -322,12 +340,14 @@ function ContextDock({
 
     <div className="operator-object-list">
       <div className="operator-object-list__heading">OBJECT LIST</div>
-      <div className="operator-object-list__row"><span>Scene</span><b>{broadcast.programScene?.title ?? '—'}</b></div>
-      <div className="operator-object-list__row"><span>Weather</span><b>{weather.product.toUpperCase()}</b></div>
-      {graphics.visible.title && <div className="operator-object-list__row"><span>Graphic</span><b>TITLE</b></div>}
-      {graphics.visible.lower && <div className="operator-object-list__row"><span>Graphic</span><b>LOWER THIRD</b></div>}
-      {graphics.visible.ticker && <div className="operator-object-list__row"><span>Graphic</span><b>TICKER</b></div>}
-      {(Object.keys(visibility) as BroadcastLayerGroup[]).filter(group => visibility[group]).map(group => <div key={group} className="operator-object-list__row"><span>Map</span><b>{group.toUpperCase()}</b></div>)}
+      {forecast.active ? <ForecastGraphicObjectList /> : <>
+        <div className="operator-object-list__row"><span>Scene</span><b>{broadcast.programScene?.title ?? '—'}</b></div>
+        <div className="operator-object-list__row"><span>Weather</span><b>{weather.product.toUpperCase()}</b></div>
+        {graphics.visible.title && <div className="operator-object-list__row"><span>Graphic</span><b>TITLE</b></div>}
+        {graphics.visible.lower && <div className="operator-object-list__row"><span>Graphic</span><b>LOWER THIRD</b></div>}
+        {graphics.visible.ticker && <div className="operator-object-list__row"><span>Graphic</span><b>TICKER</b></div>}
+        {(Object.keys(visibility) as BroadcastLayerGroup[]).filter(group => visibility[group]).map(group => <div key={group} className="operator-object-list__row"><span>Map</span><b>{group.toUpperCase()}</b></div>)}
+      </>}
     </div>
   </aside>;
 }
@@ -362,6 +382,7 @@ function OperatorWorkspace({
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
   const graphics = useGraphicsSnapshot();
+  const forecast = useForecastGraphics();
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [rightTab, setRightTab] = useState<ContextTab>('properties');
   const [contentTab, setContentTab] = useState<ContentTab>('scenes');
@@ -397,8 +418,9 @@ function OperatorWorkspace({
       selectedTime: weather.snapshot.selectedTime,
     },
     graphics,
+    forecastGraphics: forecast.snapshot,
     hiddenMenuAvailable,
-  }), [basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, graphics, hiddenMenuAvailable, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
+  }), [basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, forecast.snapshot, graphics, hiddenMenuAvailable, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
 
   useEffect(() => {
     if (publishTimer.current) clearTimeout(publishTimer.current);
@@ -458,18 +480,21 @@ function OperatorWorkspace({
     <CanvasTimeline />
 
     <section className="map-stage operator-canvas-stage">
+      <div className={`operator-map-layer ${forecast.active ? 'operator-map-layer--behind-graphic' : ''}`}>
+        <WeatherMapConnection>{connect => <BroadcastMap
+          onMapReady={connect}
+          basemapMode={basemapMode}
+          visibility={visibility}
+          onHealthChange={(nextHealth, message) => {
+            setHealth(nextHealth);
+            setHealthMessage(message);
+            void invoke('report_map_health', { health: nextHealth, message }).catch(() => undefined);
+          }}
+          onCameraChange={setCamera}
+        />}</WeatherMapConnection>
+      </div>
+      {forecast.active && <ForecastGraphicEditorStage />}
       <GraphicsOverlay />
-      <WeatherMapConnection>{connect => <BroadcastMap
-        onMapReady={connect}
-        basemapMode={basemapMode}
-        visibility={visibility}
-        onHealthChange={(nextHealth, message) => {
-          setHealth(nextHealth);
-          setHealthMessage(message);
-          void invoke('report_map_health', { health: nextHealth, message }).catch(() => undefined);
-        }}
-        onCameraChange={setCamera}
-      />}</WeatherMapConnection>
       <CanvasHiddenMenu available={hiddenMenuAvailable} onAvailableChange={setHiddenMenuAvailable} onPopout={openPopout} />
     </section>
 
@@ -512,7 +537,8 @@ function RbrwxOperatorWorkspaceRoot() {
   >
     <CurrentWeatherHost>
       <GraphicsHost>
-        <OperatorWorkspace
+        <ForecastGraphicsHost>
+          <OperatorWorkspace
           basemapMode={basemapMode}
           setBasemapMode={setBasemapMode}
           visibility={visibility}
@@ -525,7 +551,8 @@ function RbrwxOperatorWorkspaceRoot() {
           setCamera={setCamera}
           hiddenMenuAvailable={hiddenMenuAvailable}
           setHiddenMenuAvailable={setHiddenMenuAvailable}
-        />
+          />
+        </ForecastGraphicsHost>
       </GraphicsHost>
     </CurrentWeatherHost>
   </BroadcastProvider>;
@@ -562,12 +589,13 @@ function CaptureWeatherCanvas({ state }: { state: CapturePresentationState }) {
 
   useEffect(() => () => controller.destroy(), [controller]);
   useEffect(() => {
+    if (state.forecastGraphics.active) { controller.destroy(); return; }
     const sceneId = state.scene?.id ?? 'capture';
     controller.select(sceneId, state.weather.product, state.weather.options ?? defaultOptions(), '');
-  }, [controller, state.scene?.id, state.weather.options, state.weather.product]);
+  }, [controller, state.forecastGraphics.active, state.scene?.id, state.weather.options, state.weather.product]);
 
   useEffect(() => {
-    if (state.weather.product !== 'radar' || radarSync.current || !snapshot.radarSites.length) return;
+    if (state.forecastGraphics.active || state.weather.product !== 'radar' || radarSync.current || !snapshot.radarSites.length) return;
     const desired = state.weather.activeRadarIds;
     const current = snapshot.activeRadarIds;
     if (JSON.stringify(desired) === JSON.stringify(current) && (state.weather.primaryRadarId ?? desired[0] ?? null) === snapshot.primaryRadarId) return;
@@ -587,25 +615,25 @@ function CaptureWeatherCanvas({ state }: { state: CapturePresentationState }) {
         radarSync.current = false;
       }
     })();
-  }, [controller, snapshot.activeRadarIds, snapshot.primaryRadarId, snapshot.radarSites.length, state.weather.activeRadarIds, state.weather.primaryRadarId, state.weather.product]);
+  }, [controller, snapshot.activeRadarIds, snapshot.primaryRadarId, snapshot.radarSites.length, state.forecastGraphics.active, state.weather.activeRadarIds, state.weather.primaryRadarId, state.weather.product]);
 
   useEffect(() => {
     const target = state.weather.selectedTime;
-    if ((state.weather.product !== 'radar' && state.weather.product !== 'satellite') || target === null) return;
+    if (state.forecastGraphics.active || (state.weather.product !== 'radar' && state.weather.product !== 'satellite') || target === null) return;
     if (snapshot.selectedTime === target || !snapshot.times.includes(target)) return;
     void controller.seek(target);
-  }, [controller, snapshot.selectedTime, snapshot.times, state.weather.product, state.weather.selectedTime]);
+  }, [controller, snapshot.selectedTime, snapshot.times, state.forecastGraphics.active, state.weather.product, state.weather.selectedTime]);
 
   return <section className="capture-canvas-stage">
-    <GraphicsSnapshotOverlay snapshot={state.graphics} extraKeys={palettes.keys} />
-    <BroadcastMap
+    {state.forecastGraphics.active ? <ForecastGraphicSnapshotStage snapshot={state.forecastGraphics} /> : <BroadcastMap
       onMapReady={map => controller.connect(map, 'rbrwx-county-boundary')}
       basemapMode={state.basemapMode}
       visibility={state.visibility}
       camera={state.camera}
       interactive={false}
       onHealthChange={() => undefined}
-    />
+    />}
+    <GraphicsSnapshotOverlay snapshot={state.graphics} extraKeys={palettes.keys} />
     <CaptureHiddenMenu available={state.hiddenMenuAvailable} />
   </section>;
 }

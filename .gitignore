@@ -8,3 +8,10 @@ src-tauri/target/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local reusable broadcast graphic assets. Keep folder instructions tracked;
+# operator-added PNG/SVG files remain local and do not dirty the source tree.
+asset-library/png/*
+!asset-library/png/README.txt
+asset-library/svg/*
+!asset-library/svg/README.txt

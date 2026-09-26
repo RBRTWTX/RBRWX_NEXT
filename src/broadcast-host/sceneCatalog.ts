@@ -20,6 +20,16 @@ export const RBRWX_SCENE_CATALOG: readonly BroadcastSceneDefinition[] = [
     contentKey: 'map.satellite',
     defaultHoldMs: 8000,
   },
+  { id: 'graphic-right-now', title: 'Right Now', subtitle: 'Current conditions graphic', category: 'FORECAST', contentKey: 'graphic.right-now', defaultHoldMs: 10000 },
+  { id: 'graphic-today', title: 'Today', subtitle: 'Single-period daytime forecast', category: 'FORECAST', contentKey: 'graphic.today', defaultHoldMs: 10000 },
+  { id: 'graphic-tonight', title: 'Tonight', subtitle: 'Single-period nighttime forecast', category: 'FORECAST', contentKey: 'graphic.tonight', defaultHoldMs: 10000 },
+  { id: 'graphic-today-tonight', title: 'Today & Tonight', subtitle: 'Two-panel day and night forecast', category: 'FORECAST', contentKey: 'graphic.today-tonight', defaultHoldMs: 12000 },
+  { id: 'graphic-hourly', title: 'Hourly', subtitle: 'Upcoming hourly forecast', category: 'FORECAST', contentKey: 'graphic.hourly', defaultHoldMs: 12000 },
+  { id: 'graphic-seven-day', title: '7-Day Forecast', subtitle: 'Seven-day forecast graphic', category: 'FORECAST', contentKey: 'graphic.seven-day', defaultHoldMs: 14000 },
+  { id: 'graphic-planner', title: 'Planner', subtitle: 'Four-period planning graphic', category: 'FORECAST', contentKey: 'graphic.planner', defaultHoldMs: 12000 },
+  { id: 'graphic-weekend', title: 'Weekend', subtitle: 'Saturday and Sunday forecast', category: 'FORECAST', contentKey: 'graphic.weekend', defaultHoldMs: 12000 },
+  { id: 'graphic-need-to-know', title: 'Need to Know', subtitle: 'Editable on-air message board', category: 'GRAPHIC', contentKey: 'graphic.need-to-know', defaultHoldMs: 14000 },
+  { id: 'graphic-blank', title: 'Blank Canvas', subtitle: 'Custom text, icons, PNG and SVG graphic', category: 'GRAPHIC', contentKey: 'graphic.blank', defaultHoldMs: 12000 },
 ];
 
 export const RBRWX_INITIAL_RUNDOWN_SCENE_IDS = ['base-broadcast-map'] as const;

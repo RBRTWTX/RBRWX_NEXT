@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "release": "nonmap-graphics-checkpoint-1",
+  "files": {
+    "asset-library/png/README.txt": "11cd68a89489e2cc8f30e2e5e70e13ae5c5521a4804960128dca3e6ef4b6ad3d",
+    "asset-library/svg/README.txt": "d162d9f1fa63e9565bb4e7d46c95c93434b1f5db2bbdd08c8259c964d6387e16",
+    "scripts/forecast-graphics/verify.mjs": "5e1016912cc2bb6ea59977f8a54c167d59faff99a324aec3c2670e2a560381e9",
+    "src/forecast-graphics/ForecastGraphics.tsx": "fe0c842cc101f39575ca14355e4f66f348c309c832965c629ac727ffabf294ff",
+    "src/forecast-graphics/forecastData.ts": "fd407f2c7dcfca759b1688428b12605fe3b57bd62768ae1ef6358bc5a9c25309",
+    "src/forecast-graphics/forecastGraphics.css": "78fe7f6f09305bd2546c9cf054b6650debecb8315edbe3a690f63aad79cba595",
+    "src/forecast-graphics/model.ts": "0b10f8467f11e86e9dd385a8f707f5871b1c2c658df76995f209581fbd5c4030",
+    "src/broadcast-host/ForecastGraphicsHost.tsx": "a1836ee7aedb03dda6b0155118475e8f3d73b495c3b876daa6c94db993225fae"
+  }
+}

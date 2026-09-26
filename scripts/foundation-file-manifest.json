@@ -4,7 +4,7 @@
   "files": {
     ".gitattributes": "1a1dbe176bc233b499d35a57db7513f2941c99ab9759f177830c9149be99005b",
     ".github/workflows/foundation-ci.yml": "be9d1d35f98a4ed0f723689850b53087711aeac3e1848afbb6d276a7e71f76e8",
-    ".gitignore": "d30c17ab055c67dd155c31f5de6ffbde8bcab9990ac435b47c3c252a9c5cb870",
+    ".gitignore": "07952f7cfd167428567082e1817ae488726ce14f94fb400f3ecbfdb22f551873",
     "ACCEPTANCE.md": "ff21c7774be66384aec0f567146debdce4b225aa62795d3c869cd50301ed3c4e",
     "README.md": "fee804c11b6e6d614136b18c1f71f62d6087dfc833033f084d2c6cdfca90703e",
     "docs/BROADCAST_MAP_FOUNDATION.md": "fe1fb5c384f9ea9beeafd96013a8cf61bc04da9fdb8da67db101b6db5e2b679f",
@@ -27,7 +27,7 @@
     "src-tauri/Cargo.toml": "ee1cab7dcb2bf2899dad792d1fbef0525df2e3d70d876bbce361631defc7525e",
     "src-tauri/build.rs": "487059eaf8a947b80f20a9aacac038a5047b2ad69d2401b827376c67d6fe847f",
     "src-tauri/capabilities/default.json": "3f134e2488c94f0ef380b9b56609ef334aaefd9e15a8e0bee42c65d19dc7dbcb",
-    "src-tauri/src/lib.rs": "d542a836f2d176400e42b1357e8b8fef97149008039481bafbe803dde3290a18",
+    "src-tauri/src/lib.rs": "3144ae6c8e1bc4fbb39424ee85400b37ef15ce37a80c1e98ad4382d9449d6975",
     "src-tauri/src/main.rs": "f4848fc5dcd1b44eb5c1f502a3193e61d6707656545f5862585a31b5ef2e58b2",
     "src-tauri/tauri.conf.json": "b6defc114f6416eaf66f7fbcda2e3d3b9407afd6b0afa53af80aafbbfb39dac6",
     "tsconfig.app.json": "afb0085f8ede98758d32bee3ae7a4cb34c27bae107d53698755320f130f94f0d",
