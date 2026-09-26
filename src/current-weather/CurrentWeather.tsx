@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Map as WeatherMap } from 'maplibre-gl';
 import { CurrentWeatherController } from './controller';
-import { defaultOptions, initialSnapshot, type Options, type Product, type Snapshot } from './model';
+import { currentConditionTitles, defaultOptions, initialSnapshot, type CurrentConditionField, type Options, type Product, type Snapshot } from './model';
 import './weather.css';
 
 interface Runtime { product: Product; snapshot: Snapshot; options: Options; edit: (patch: Partial<Options>) => void; controller: CurrentWeatherController }
@@ -11,7 +11,7 @@ export function useCurrentWeather() { const value = useContext(Context); if (!va
 export function CurrentWeatherProvider({ sceneId, product, children }: { sceneId: string; product: Product; children: ReactNode }) {
   const [snapshot, setSnapshot] = useState(initialSnapshot), [settings, setSettings] = useState<Record<string, Options>>({});
   const controller = useMemo(() => new CurrentWeatherController(setSnapshot), []), options = settings[sceneId] ?? defaultOptions();
-  useLayoutEffect(() => { controller.select(sceneId, product, options, ''); }, [controller, sceneId, product, options.units, options.opacity, options.loop, options.mrmsEnabled, options.sweepsEnabled]);
+  useLayoutEffect(() => { controller.select(sceneId, product, options, ''); }, [controller, sceneId, product, options.units, options.opacity, options.loop, options.mrmsEnabled, options.sweepsEnabled, options.currentField]);
   useEffect(() => () => controller.destroy(), [controller]);
   return <Context.Provider value={{ product, snapshot, options, controller, edit: patch => setSettings(old => ({ ...old, [sceneId]: { ...(old[sceneId] ?? defaultOptions()), ...patch } })) }}>{children}</Context.Provider>;
 }
@@ -27,10 +27,20 @@ export function WeatherControls() {
   if (product === 'map') return null;
   return <section className="wx-current-controls" aria-label="Current weather controls">
     {product === 'observations' && <>
-      <div className="panel-heading">TEMPERATURE</div>
-      <label><input type="checkbox" checked={options.units === 'metric'} onChange={e => edit({ units: e.target.checked ? 'metric' : 'imperial' })} /> Metric units</label>
-      <label>Layer opacity<input aria-label="Temperature layer opacity" type="range" min="0" max="100" value={Math.round(options.opacity * 100)} onChange={e => edit({ opacity: Number(e.target.value) / 100 })} /></label>
-      <button type="button" onClick={() => void controller.refresh()}>Refresh temperatures</button>
+      <div className="panel-heading">CURRENT CONDITIONS</div>
+      <div className="wx-condition-picker" aria-label="Current conditions data layer">
+        {(['temperature', 'humidity', 'heatIndex'] as CurrentConditionField[]).map(field =>
+          <button
+            type="button"
+            key={field}
+            aria-pressed={options.currentField === field}
+            onClick={() => edit({ currentField: field })}
+          >{currentConditionTitles[field].toUpperCase()}</button>
+        )}
+      </div>
+      {options.currentField !== 'humidity' && <label><input type="checkbox" checked={options.units === 'metric'} onChange={e => edit({ units: e.target.checked ? 'metric' : 'imperial' })} /> Metric units</label>}
+      <label>Layer opacity<input aria-label={`${currentConditionTitles[options.currentField]} layer opacity`} type="range" min="0" max="100" value={Math.round(options.opacity * 100)} onChange={e => edit({ opacity: Number(e.target.value) / 100 })} /></label>
+      <button type="button" onClick={() => void controller.refresh()}>Refresh {currentConditionTitles[options.currentField].toLowerCase()}</button>
     </>}
 
     {product === 'radar' && <>

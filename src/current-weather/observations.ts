@@ -23,6 +23,7 @@ export function parseObservation(raw: unknown, station: { id: string; name: stri
     wind: quantity(p.windSpeed, 'km_h-1'),
     gust: quantity(p.windGust, 'km_h-1'),
     humidity: quantity(p.relativeHumidity, 'percent'),
+    heatIndex: quantity(p.heatIndex, 'degC'),
     description: typeof p.textDescription === 'string' ? p.textDescription : 'Conditions unavailable',
     cached: false,
   };

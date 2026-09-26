@@ -1,13 +1,31 @@
 import type { GeoJSONSource, Map as WeatherMap } from 'maplibre-gl';
 import palettes from './palettes.json';
 import { PublicImagery, RadarImagery, type PublicImageryOptions } from './public-imagery';
-import { defaultOptions, frameTimes, freshness, initialSnapshot, nextFrame, temperatureLabel, type Observation, type Options, type Product, type RadarSite, type Snapshot } from './model';
+import {
+  currentConditionTitles,
+  defaultOptions,
+  frameTimes,
+  freshness,
+  heatIndexLabel,
+  humidityLabel,
+  initialSnapshot,
+  nextFrame,
+  observationHeatIndexF,
+  observationHumidity,
+  temperatureLabel,
+  type CurrentConditionField,
+  type Observation,
+  type Options,
+  type Product,
+  type RadarSite,
+  type Snapshot,
+} from './model';
 import { ObservationsClient } from './observations';
 
 const observationSourceId = 'rbrwx-current-observations';
 const observationLayerId = 'rbrwx-current-observation-labels';
-const temperatureFieldSourceId = 'rbrwx-current-temperature-field';
-const temperatureFieldLayerId = 'rbrwx-current-temperature-field-fill';
+const currentFieldSourceId = 'rbrwx-current-condition-field';
+const currentFieldLayerId = 'rbrwx-current-condition-field-raster';
 
 type ManagerState = Record<string, unknown>;
 interface WeatherManager {
@@ -29,14 +47,15 @@ interface WeatherManager {
 interface ManagerOptions extends PublicImageryOptions { mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
 export type ManagerFactory = (map: WeatherMap, options: ManagerOptions) => Promise<WeatherManager>;
 const loadManager: ManagerFactory = async (map, options) => options.product === 'radar'
-  ? new RadarImagery(map, { ...options, product: 'radar', mrmsEnabled: options.mrmsEnabled, onNotice: options.onNotice })
+  ? new RadarImagery(map, { ...options, product: 'radar', mrmsEnabled: options.mrmsEnabled, sweepsEnabled: options.sweepsEnabled, onNotice: options.onNotice })
   : new PublicImagery(map, options);
 
 interface TemperaturePaletteBin { label: string; value?: string | number; rgba: number[] }
 interface TemperaturePalette { id: string; bins: TemperaturePaletteBin[] }
 type Rgba = [number, number, number, number];
+type ColorStop = { value: number; rgba: Rgba };
 type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
-interface TemperatureFieldImage { url: string; coordinates: ImageCoordinates }
+interface CurrentFieldImage { url: string; coordinates: ImageCoordinates }
 
 const temperaturePalette = ((palettes as unknown as { keys: TemperaturePalette[] }).keys ?? []).find(key => key.id === 'nws.ndfd.temperature');
 
@@ -49,7 +68,7 @@ function temperatureStopValue(bin: TemperaturePaletteBin): number | null {
   return values[0];
 }
 
-const temperatureStops = (() => {
+const temperatureStops: ColorStop[] = (() => {
   const unique = new Map<number, Rgba>();
   for (const bin of temperaturePalette?.bins ?? []) {
     const value = temperatureStopValue(bin); if (value === null) continue;
@@ -59,27 +78,72 @@ const temperatureStops = (() => {
   return [...unique.entries()].map(([value, rgba]) => ({ value, rgba })).sort((a, b) => a.value - b.value);
 })();
 
-function temperatureRgba(fahrenheit: number): Rgba {
-  if (!temperatureStops.length) return [68, 124, 178, 255];
-  if (fahrenheit <= temperatureStops[0].value) return temperatureStops[0].rgba;
-  for (let i = 1; i < temperatureStops.length; i++) {
-    const lower = temperatureStops[i - 1], upper = temperatureStops[i];
-    if (fahrenheit > upper.value) continue;
+// Absolute 0-100% broadcast humidity palette. This is intentionally stable across viewports;
+// switching/zooming never re-normalizes the colors to the local min/max.
+const humidityStops: ColorStop[] = [
+  { value: 0, rgba: [126, 65, 34, 255] },
+  { value: 20, rgba: [196, 116, 43, 255] },
+  { value: 35, rgba: [220, 177, 69, 255] },
+  { value: 50, rgba: [126, 181, 78, 255] },
+  { value: 65, rgba: [45, 170, 130, 255] },
+  { value: 80, rgba: [42, 122, 185, 255] },
+  { value: 100, rgba: [74, 53, 145, 255] },
+];
+
+// Heat-index breakpoints follow NWS public safety bands (80/90/103/125F). Colors are
+// a broadcast visualization palette, not a claim to reproduce proprietary Baron/Max styling.
+const heatIndexStops: ColorStop[] = [
+  { value: 60, rgba: [74, 137, 183, 255] },
+  { value: 75, rgba: [118, 184, 130, 255] },
+  { value: 80, rgba: [239, 220, 79, 255] },
+  { value: 90, rgba: [239, 151, 47, 255] },
+  { value: 103, rgba: [211, 60, 54, 255] },
+  { value: 125, rgba: [151, 50, 117, 255] },
+  { value: 140, rgba: [86, 38, 100, 255] },
+];
+
+function interpolateColor(stops: ColorStop[], value: number, fallback: Rgba): Rgba {
+  if (!stops.length) return fallback;
+  if (value <= stops[0].value) return stops[0].rgba;
+  for (let i = 1; i < stops.length; i++) {
+    const lower = stops[i - 1], upper = stops[i];
+    if (value > upper.value) continue;
     const span = upper.value - lower.value;
-    const t = span > 0 ? Math.max(0, Math.min(1, (fahrenheit - lower.value) / span)) : 1;
-    return lower.rgba.map((value, index) => Math.round(value + (upper.rgba[index] - value) * t)) as Rgba;
+    const t = span > 0 ? Math.max(0, Math.min(1, (value - lower.value) / span)) : 1;
+    return lower.rgba.map((channel, index) => Math.round(channel + (upper.rgba[index] - channel) * t)) as Rgba;
   }
-  return temperatureStops[temperatureStops.length - 1].rgba;
+  return stops[stops.length - 1].rgba;
+}
+
+function fieldRgba(field: CurrentConditionField, value: number): Rgba {
+  if (field === 'humidity') return interpolateColor(humidityStops, value, [45, 170, 130, 255]);
+  if (field === 'heatIndex') return interpolateColor(heatIndexStops, value, [239, 220, 79, 255]);
+  return interpolateColor(temperatureStops, value, [68, 124, 178, 255]);
+}
+
+function observationFieldValue(observation: Observation, field: CurrentConditionField): number | null {
+  if (field === 'humidity') return observationHumidity(observation);
+  if (field === 'heatIndex') return observationHeatIndexF(observation);
+  return observation.temperature === null ? null : observation.temperature * 9 / 5 + 32;
+}
+
+function observationFieldLabel(observation: Observation, field: CurrentConditionField, units: Options['units']): string {
+  if (field === 'humidity') return humidityLabel(observation);
+  if (field === 'heatIndex') return heatIndexLabel(observation, units);
+  return temperatureLabel(observation.temperature, units);
 }
 
 const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
-function transparentTemperatureField(): TemperatureFieldImage {
+function transparentCurrentField(): CurrentFieldImage {
   return { url: transparentPixel, coordinates: [[-180, 85], [180, 85], [180, -85], [-180, -85]] };
 }
 
-function buildTemperatureFieldImage(map: WeatherMap, observations: Observation[]): TemperatureFieldImage | null {
-  const valid = observations.filter((o): o is Observation & { temperature: number } => o.temperature !== null);
+function buildCurrentFieldImage(map: WeatherMap, observations: Observation[], field: CurrentConditionField): CurrentFieldImage | null {
+  const valid = observations.flatMap(observation => {
+    const value = observationFieldValue(observation, field);
+    return value === null || !Number.isFinite(value) ? [] : [{ observation, value }];
+  });
   if (valid.length < 2 || map.getZoom() < 4 || typeof document === 'undefined') return null;
 
   const bounds = map.getBounds(), west = bounds.getWest(), east = bounds.getEast(), south = bounds.getSouth(), north = bounds.getNorth();
@@ -103,12 +167,12 @@ function buildTemperatureFieldImage(map: WeatherMap, observations: Observation[]
     for (let x = 0; x < width; x++) {
       const lng = west + (x + .5) / width * lonSpan;
       let weighted = 0, weights = 0, nearest = Infinity;
-      for (const observation of valid) {
-        const distance = Math.hypot((observation.lng - lng) * cos, observation.lat - lat);
+      for (const sample of valid) {
+        const distance = Math.hypot((sample.observation.lng - lng) * cos, sample.observation.lat - lat);
         nearest = Math.min(nearest, distance);
         if (distance > maxDistance) continue;
         const weight = 1 / Math.pow(Math.max(.015, distance), 1.7);
-        weighted += (observation.temperature * 9 / 5 + 32) * weight;
+        weighted += sample.value * weight;
         weights += weight;
       }
       const offset = (y * width + x) * 4;
@@ -116,7 +180,7 @@ function buildTemperatureFieldImage(map: WeatherMap, observations: Observation[]
         image.data[offset + 3] = 0;
         continue;
       }
-      const rgba = temperatureRgba(weighted / weights);
+      const rgba = fieldRgba(field, weighted / weights);
       image.data[offset] = rgba[0];
       image.data[offset + 1] = rgba[1];
       image.data[offset + 2] = rgba[2];
@@ -185,8 +249,8 @@ export class CurrentWeatherController {
     this.interval = null; this.refreshInterval = null; this.moveTimer = null;
     this.map?.off('moveend', this.move);
     this.manager?.destroy(); this.manager = null;
-    for (const id of [observationLayerId, temperatureFieldLayerId]) if (this.map?.getLayer(id)) this.map.removeLayer(id);
-    for (const id of [observationSourceId, temperatureFieldSourceId]) if (this.map?.getSource(id)) this.map.removeSource(id);
+    for (const id of [observationLayerId, currentFieldLayerId]) if (this.map?.getLayer(id)) this.map.removeLayer(id);
+    for (const id of [observationSourceId, currentFieldSourceId]) if (this.map?.getSource(id)) this.map.removeSource(id);
     this.requested = null; this.received = 0; this.networkFailed = false; this.refreshing = false; this.paletteFallback = false;
   }
 
@@ -198,9 +262,9 @@ export class CurrentWeatherController {
     if (!map) { this.emit({ status: 'loading', message: 'Waiting for geographic map' }); return; }
 
     if (this.product === 'observations') {
-      const initialField = transparentTemperatureField();
-      map.addSource(temperatureFieldSourceId, { type: 'image', url: initialField.url, coordinates: initialField.coordinates });
-      map.addLayer({ id: temperatureFieldLayerId, type: 'raster', source: temperatureFieldSourceId, paint: { 'raster-opacity': Math.min(.68, this.options.opacity * .72), 'raster-fade-duration': 0, 'raster-resampling': 'linear' } }, this.anchor);
+      const initialField = transparentCurrentField();
+      map.addSource(currentFieldSourceId, { type: 'image', url: initialField.url, coordinates: initialField.coordinates });
+      map.addLayer({ id: currentFieldLayerId, type: 'raster', source: currentFieldSourceId, paint: { 'raster-opacity': Math.min(.68, this.options.opacity * .72), 'raster-fade-duration': 0, 'raster-resampling': 'linear' } }, this.anchor);
       map.addSource(observationSourceId, { type: 'geojson', data: emptyFeatureCollection(), attribution: 'NOAA / National Weather Service observations' });
       map.addLayer({
         id: observationLayerId, type: 'symbol', source: observationSourceId,
@@ -268,7 +332,7 @@ export class CurrentWeatherController {
 
   private async loadObservations(generation: number) {
     const map = this.map; if (!map) return; this.abort?.abort(); const abort = new AbortController(); this.abort = abort;
-    const bounds = map.getBounds(); this.emit({ status: 'loading', message: 'Updating visible NWS temperatures…', time: null });
+    const bounds = map.getBounds(); this.emit({ status: 'loading', message: 'Updating visible NWS current conditions…', time: null });
     try {
       const observations = await this.observations.loadViewport({ west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth(), zoom: map.getZoom() }, abort.signal);
       if (generation !== this.generation || abort.signal.aborted) return;
@@ -279,21 +343,23 @@ export class CurrentWeatherController {
   }
 
   private drawObservations() {
-    if (this.product !== 'observations' || !this.map) return; const observations = this.snapshot.observations;
-    const features = observations.flatMap(o => {
-      const label = temperatureLabel(o.temperature, this.options.units); if (!label) return [];
-      return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [o.lng, o.lat] }, properties: { label } }];
+    if (this.product !== 'observations' || !this.map) return;
+    const observations = this.snapshot.observations, field = this.options.currentField;
+    const features = observations.flatMap(observation => {
+      const label = observationFieldLabel(observation, field, this.options.units); if (!label) return [];
+      return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [observation.lng, observation.lat] }, properties: { label } }];
     });
     (this.map.getSource(observationSourceId) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-    const field = buildTemperatureFieldImage(this.map, observations) ?? transparentTemperatureField();
-    const fieldSource = this.map.getSource(temperatureFieldSourceId) as any;
-    if (typeof fieldSource?.updateImage === 'function') fieldSource.updateImage(field);
+    const raster = buildCurrentFieldImage(this.map, observations, field) ?? transparentCurrentField();
+    const fieldSource = this.map.getSource(currentFieldSourceId) as any;
+    if (typeof fieldSource?.updateImage === 'function') fieldSource.updateImage(raster);
     if (this.map.getLayer(observationLayerId)) this.map.setPaintProperty(observationLayerId, 'text-opacity', this.options.opacity);
-    if (this.map.getLayer(temperatureFieldLayerId)) this.map.setPaintProperty(temperatureFieldLayerId, 'raster-opacity', Math.min(.68, this.options.opacity * .72));
+    if (this.map.getLayer(currentFieldLayerId)) this.map.setPaintProperty(currentFieldLayerId, 'raster-opacity', Math.min(.68, this.options.opacity * .72));
     if (observations.length) {
       const states = observations.map(o => freshness(o.time, 90, o.cached));
       const status = states.includes('unavailable') ? 'unavailable' : states.includes('stale') ? 'stale' : states.includes('cached') ? 'cached' : 'fresh';
-      this.emit({ status, time: Math.min(...observations.map(o => o.time)), message: `NWS observed temperatures · ${status.toUpperCase()} · ${observations.length} stations sampled for this viewport` });
+      const validCount = observations.filter(o => observationFieldValue(o, field) !== null).length;
+      this.emit({ status, time: Math.min(...observations.map(o => o.time)), message: `NWS ${currentConditionTitles[field].toLowerCase()} · ${status.toUpperCase()} · ${validCount} values across ${observations.length} sampled stations` });
     }
   }
 
