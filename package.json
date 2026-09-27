@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "repo:integrity": "node scripts/repo/verify-integrity.mjs",
+    "repo:installer": "node --test scripts/install/framework.test.mjs",
     "map:integrity": "node scripts/validate-payload-manifest.mjs",
     "map:contract": "node scripts/validate-broadcast-contract.mjs",
     "map:style": "gl-style-validate src/map/broadcastMapStyle.json",
@@ -17,7 +18,7 @@
     "native:assets": "node scripts/validate-native-assets.mjs",
     "verify:foundation": "npm run map:integrity && npm run native:assets && npm run map:contract && npm run map:style && npm run map:provider:test",
     "verify:modules": "node scripts/broadcast/verify-broadcast.mjs && node scripts/graphics/verify.mjs && node scripts/current-weather/verify.mjs && node scripts/forecast-graphics/verify.mjs && node scripts/qpf/verify.mjs",
-    "verify": "npm run repo:integrity && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
+    "verify": "npm run repo:integrity && npm run repo:installer && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
     "verify:live": "npm run map:provider && node scripts/current-weather/provider.mjs && node scripts/current-weather/provider-radar.mjs && node scripts/qpf/verify-provider.mjs",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",

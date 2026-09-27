@@ -21,3 +21,5 @@ asset-library/svg/*
 !asset-library/svg/README.txt
 .rbrwx-cp1a-v2-stage-*/
 .rbrwx-cp1a-v2-backup-*/
+.rbrwx-installer-stage-*/
+.rbrwx-installer-backup-*/

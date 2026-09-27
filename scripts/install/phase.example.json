@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "phase": "example-phase-id",
+  "acceptedBase": "0000000000000000000000000000000000000000",
+  "payloadFiles": {
+    "path/to/existing-or-new-file.txt": "RAW_SHA256_OF_PACKAGED_FILE"
+  },
+  "deletePaths": [],
+  "manifests": [
+    "scripts/foundation-file-manifest.json",
+    "scripts/broadcast/broadcast-package-file-manifest.json",
+    "scripts/current-weather/payload-manifest.json",
+    "scripts/forecast-graphics/payload-manifest.json",
+    "scripts/qpf/payload-manifest.json"
+  ],
+  "manifestContracts": {
+    "scripts/foundation-file-manifest.json": {
+      "schema": 1,
+      "release": "0.1.0-broadcast-map-foundation",
+      "baseEntryCount": 0
+    },
+    "scripts/broadcast/broadcast-package-file-manifest.json": {
+      "schema": 1,
+      "release": "pre-0.3.0-broadcast-base-standalone",
+      "baseEntryCount": 0
+    },
+    "scripts/current-weather/payload-manifest.json": {
+      "schema": 1,
+      "release": "current-weather-public-noaa-v9-humidity-heat-index-interactive",
+      "baseEntryCount": 0
+    },
+    "scripts/forecast-graphics/payload-manifest.json": {
+      "schema": 1,
+      "release": "nonmap-graphics-checkpoint-1",
+      "baseEntryCount": 0
+    },
+    "scripts/qpf/payload-manifest.json": {
+      "schema": 1,
+      "release": "qpf-scenes-checkpoint-1",
+      "baseEntryCount": 0
+    }
+  },
+  "newOwnership": {
+    "path/to/existing-or-new-file.txt": "scripts/foundation-file-manifest.json"
+  }
+}
