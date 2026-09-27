@@ -1,2 +1,12 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Repository text is canonical LF on every platform.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending transformed.
+*.png -text
+*.ico -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.webp -text
+*.wasm -text
+*.zip -text

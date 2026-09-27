@@ -2,13 +2,11 @@
   "schema": 1,
   "release": "qpf-scenes-checkpoint-1",
   "files": {
-    "scripts/qpf/verify.mjs": "c9316f1511b88a2d5d2db0bd51297de2781b7940fa4162218bfc93edb8ab9ed3",
     "scripts/qpf/verify-provider.mjs": "fcf8b067b5fa5cdcce36eae37c6c7471859948f50298d73b73be80368a800ddc",
-    "src/qpf/model.ts": "e6dd8cebd40005a17add34e1af8ffa1d08e6c978595c79dc4994653ed3b7f9e9",
-    "src/qpf/controller.ts": "dd616842afeebed0242ab570a61c39911beadccfd0ff8b59e4bc51302c0357a6",
+    "scripts/qpf/verify.mjs": "17f67d22a29bbecce83e49271b0f9f40b0f4e254bc12296aed66afac3a430fb7",
     "src/qpf/Qpf.tsx": "5df07a1dd795e17cf0d3bb67e0dee6da9f04744bf439f8eff2638c9ebd90b9dc",
-    "src/qpf/qpf.css": "62db30ad5ae2d0cdb8d20da8b916c94ea03942f97c2d4498a8f3fc758a1d0143",
-    "src/broadcast-host/QpfHost.tsx": "78ccebf982fb513156c548ee6153d88206f5b24273253b095bcab19868afc6a3",
-    "src-tauri/tauri.conf.json": "d1f160f9d08a3fe682260ffd458dfd99e387504fd91ccd69153a0bb16f17c5f9"
+    "src/qpf/controller.ts": "dd616842afeebed0242ab570a61c39911beadccfd0ff8b59e4bc51302c0357a6",
+    "src/qpf/model.ts": "e6dd8cebd40005a17add34e1af8ffa1d08e6c978595c79dc4994653ed3b7f9e9",
+    "src/qpf/qpf.css": "62db30ad5ae2d0cdb8d20da8b916c94ea03942f97c2d4498a8f3fc758a1d0143"
   }
 }

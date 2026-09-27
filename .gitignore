@@ -1,8 +1,12 @@
 node_modules/
 dist/
 src-tauri/target/
+src-tauri/gen/
+*.tsbuildinfo
 .rbrwx-backups/
 .rbrwx-stage*/
+.rbrwx-cp1a-stage-*/
+.rbrwx-cp1a-backup-*/
 *.log
 .DS_Store
 Thumbs.db
@@ -15,3 +19,5 @@ asset-library/png/*
 !asset-library/png/README.txt
 asset-library/svg/*
 !asset-library/svg/README.txt
+.rbrwx-cp1a-v2-stage-*/
+.rbrwx-cp1a-v2-backup-*/

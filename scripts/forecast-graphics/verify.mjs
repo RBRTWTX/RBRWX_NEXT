@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { canonicalSha256File } from '../repo/integrity.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(import.meta.url);
 const ts = require('../broadcast/vendor/typescript/typescript.cjs');
 const read = relative => fs.readFileSync(path.join(root, ...relative.split('/')), 'utf8');
-const sha = relative => createHash('sha256').update(fs.readFileSync(path.join(root, ...relative.split('/')))).digest('hex');
+const sha = relative => canonicalSha256File(path.join(root, ...relative.split('/')));
 
 const manifest = JSON.parse(read('scripts/forecast-graphics/payload-manifest.json'));
 assert.equal(manifest.schema, 1);

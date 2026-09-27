@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { canonicalSha256File } from '../repo/integrity.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = relative => fs.readFileSync(path.join(root, ...relative.split('/')), 'utf8');
-const hash = relative => createHash('sha256').update(fs.readFileSync(path.join(root, ...relative.split('/')))).digest('hex');
+const hash = relative => canonicalSha256File(path.join(root, ...relative.split('/')));
 const fail = message => { throw new Error(`RBRWX QPF contract: ${message}`); };
 
 const manifest = JSON.parse(read('scripts/qpf/payload-manifest.json'));

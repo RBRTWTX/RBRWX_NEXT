@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: npm ci --no-audit --no-fund
 
-      - name: Run broadcast-map gates
+      - name: Run deterministic repository verification
         shell: pwsh
         run: npm run verify
 
@@ -47,3 +47,10 @@ jobs:
       - name: Build Tauri executable without installer bundle
         shell: pwsh
         run: npm run tauri -- build --no-bundle
+
+      - name: Assert build did not mutate tracked source
+        shell: pwsh
+        run: |
+          git diff --exit-code -- .
+          $dirty = git status --porcelain --untracked-files=all
+          if ($dirty) { throw "Build produced unexpected untracked source files:`n$dirty" }

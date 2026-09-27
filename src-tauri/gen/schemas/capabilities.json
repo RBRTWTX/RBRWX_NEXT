@@ -1,1 +1,0 @@
-{"default":{"identifier":"default","description":"Default capability for the RBRWX NEXT operator and OBS canvas windows.","local":true,"windows":["main","rbrwx-canvas"],"permissions":["core:default"]}}

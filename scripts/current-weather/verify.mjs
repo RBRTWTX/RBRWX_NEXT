@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {createRequire}from'node:module';
+import { canonicalSha256File } from '../repo/integrity.mjs';
 const root=new URL('../../',import.meta.url),require=createRequire(import.meta.url),ts=require('../broadcast/vendor/typescript/typescript.cjs');
 const manifest=JSON.parse(fs.readFileSync(new URL('scripts/current-weather/payload-manifest.json',root),'utf8'));
-for(const [file,digest] of Object.entries(manifest.files))assert.equal(createHash('sha256').update(fs.readFileSync(new URL(file,root))).digest('hex'),digest,`Current Weather integrity: ${file}`);
+for(const [file,digest] of Object.entries(manifest.files))assert.equal(canonicalSha256File(new URL(file,root)),digest,`Current Weather integrity: ${file}`);
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'rbrwx-current-test-'));
 try{
  for(const file of ['model','observations','public-imagery','controller']){const input=fs.readFileSync(new URL(`src/current-weather/${file}.ts`,root),'utf8');fs.writeFileSync(path.join(temp,file+'.js'),ts.transpileModule(input,{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,target:ts.ScriptTarget.ES2022}}).outputText);}
