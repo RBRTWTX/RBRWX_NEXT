@@ -1,3 +1,5 @@
+import {BarLibrary} from '../broadcast-graphics/BarLibrary';
+import {barAttributes,barPresentation} from '../broadcast-graphics/barStyles';
 import {createContext,useContext,useEffect,useLayoutEffect,useMemo,useState,type ReactNode} from 'react';
 import type {Map as WeatherMap} from 'maplibre-gl';
 import {useBroadcast} from '../broadcast';
@@ -30,6 +32,7 @@ export function SynopticHost({children}:{children:ReactNode}){
 export function SynopticPlayback(){const c=useSynoptic();if(!c.active)return null;return <div className="synoptic-playback"><button onClick={()=>c.step(-1)} aria-label="Previous weather frame">|◀</button><button disabled={c.snapshot.frames.length<2} onClick={c.play}>{c.playing?'Ⅱ':'▶'}</button><button onClick={()=>c.step(1)} aria-label="Next weather frame">▶|</button><button aria-pressed={c.snapshot.settings.loop} onClick={()=>c.edit({loop:!c.snapshot.settings.loop})}>LOOP</button><button onClick={()=>void c.controller.refresh()}>REFRESH</button><span>{c.snapshot.frames.length?`${c.snapshot.index+1} / ${c.snapshot.frames.length}`:'LATEST ISSUANCE'}</span></div>;}
 const objectKinds:WeatherObject['kind'][]=['cold','warm','stationary','occluded','trough','dryline','H','L','text','arrow','hurricane','tropical-storm'];
 export function SynopticControls(){const c=useSynoptic();if(!c.active)return null;const s=c.snapshot.settings;return <div className="synoptic-controls"><div className="panel-heading">BROADCAST WEATHER</div>
+ <BarLibrary value={s.barStyles} onChange={barStyles=>c.edit({barStyles})} targets={['title','lower','status']}/>
  <div className="synoptic-object-tools">{([['National',[-98,38],3.6],['Atlantic',[-55,28],3],['Gulf',[-85,23],4.5],['Pacific',[-120,22],3.5]] as const).map(([name,center,zoom])=><button key={name} disabled={!c.map} onClick={()=>c.map?.easeTo({center:[...center],zoom,duration:700})}>{name}</button>)}</div><label>Scene title<input value={s.textOverrides?.title??s.title} placeholder={PRODUCTS.find(p=>p.id===c.snapshot.productId)?.title} onChange={e=>c.edit({textOverrides:{...s.textOverrides,title:e.target.value}})}/></label>
  <label>Subtitle<input value={s.textOverrides?.subtitle??s.subtitle} onChange={e=>c.edit({textOverrides:{...s.textOverrides,subtitle:e.target.value}})}/></label>
  <label>Time text override<input value={s.textOverrides?.time??''} placeholder="Automatic valid time" onChange={e=>c.edit({textOverrides:{...s.textOverrides,time:e.target.value}})}/></label>
@@ -78,11 +81,11 @@ export function SynopticShell({snapshot,map,editable=false}:{snapshot:PackSnapsh
  const field=(id:string,value:string,label:string)=> <EditableText label={label} value={s.textOverrides?.[id]??value} edit={edit?value=>edit({textOverrides:{...s.textOverrides,[id]:value}}):undefined}/>;
  const storm=payload?.data?.features.filter(f=>f.geometry.type==='Point'&&f.properties?.MAXWIND!==undefined&&(!s.storm||f.properties._storm===s.storm)).sort((a,b)=>Number(a.properties?.TAU??0)-Number(b.properties?.TAU??0))[0]?.properties;
  return <div className={`synoptic-shell synoptic-shell--${product.family}`}>
- {s.titleVisible&&<TitleBar settings={s} title={s.title||product.title} time={`${payload?.timeLabel??'VALID'} · ${valid}`} legend={payload?.legend} edit={edit}/>}
+ {s.titleVisible&&<TitleBar appearance={barPresentation(s.barStyles?.title)} settings={s} title={s.title||product.title} time={`${payload?.timeLabel??'VALID'} · ${valid}`} legend={payload?.legend} edit={edit}/>}
  <Objects snapshot={{...snapshot,payload}} map={map} editable={editable}/>
- {(!payload||expired)&&<div className="synoptic-unavailable"><EditableText label="Status bar text" value={s.textOverrides?.status??(expired?'UNAVAILABLE · PRODUCT EXPIRED':snapshot.status)} edit={edit?value=>edit({textOverrides:{...s.textOverrides,status:value}}):undefined}/></div>}
+ {(!payload||expired)&&<div className="synoptic-unavailable" {...barAttributes(s.barStyles?.status)}><EditableText label="Status bar text" value={s.textOverrides?.status??(expired?'UNAVAILABLE · PRODUCT EXPIRED':snapshot.status)} edit={edit?value=>edit({textOverrides:{...s.textOverrides,status:value}}):undefined}/></div>}
  {product.family==='tropical'&&storm&&<aside className="synoptic-storm"><strong>{field('storm:name',String(storm.STORMNAME??'TROPICAL SYSTEM'),'Storm name')}</strong><dl>{[['Wind',`${storm.MAXWIND??'—'} kt`],['Gusts',`${storm.GUST??'—'} kt`],['Pressure',`${storm.MSLP??'—'} hPa`],['Motion',`${storm.TCDIR??'—'}° at ${storm.TCSPD??'—'} kt`],['Location',`${storm.LAT??'—'}°, ${storm.LON??'—'}°`]].map(([k,v])=><div key={k}><dt>{field(`storm:label:${k}`,k,`${k} label`)}</dt><dd>{field(`storm:value:${k}`,v,`${k} value`)}</dd></div>)}</dl><small>{field('storm:advisory',`Advisory ${storm.ADVISNUM??'—'} · ${storm.ADVDATE??''}`,'Storm advisory text')}</small></aside>}
- {(s.textOverrides?.lower??s.lower)&&<div className="synoptic-lower"><EditableText label="Lower third text" value={s.textOverrides?.lower??s.lower} edit={edit?value=>edit({textOverrides:{...s.textOverrides,lower:value}}):undefined}/></div>}
+ {(s.textOverrides?.lower??s.lower)&&<div className="synoptic-lower" {...barAttributes(s.barStyles?.lower)}><EditableText label="Lower third text" value={s.textOverrides?.lower??s.lower} edit={edit?value=>edit({textOverrides:{...s.textOverrides,lower:value}}):undefined}/></div>}
  {s.detailsVisible&&details&&<aside className="synoptic-details"><button onClick={()=>setDetails(null)}>×</button>{Object.entries(details).filter(([k])=>!k.startsWith('_')).map(([k,v])=><div key={k}><b>{field(`detail:label:${k}`,k.replaceAll('_',' '),`${k} label`)}</b><span>{field(`detail:value:${k}`,String(v??'—'),`${k} text`)}</span></div>)}</aside>}
  </div>;
 }

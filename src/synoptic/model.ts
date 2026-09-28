@@ -1,3 +1,4 @@
+import type { BarStyles } from '../broadcast-graphics/barStyles';
 import type { FeatureCollection } from 'geojson';
 export type Family = 'surface' | 'severe' | 'tropical' | 'lightning' | 'analysis' | 'mrms';
 export interface Product { id: string; title: string; family: Family; source: string; kind: 'grid' | 'glm' | 'arcgis' | 'alerts' | 'surface' | 'manual'; field?: string; service?: string; match?: string; ageMinutes: number; units?: string; range?: [number, number]; }
@@ -23,7 +24,7 @@ export const PRODUCTS: Product[] = [
 ];
 export interface WeatherObject { id: string; kind: 'cold'|'warm'|'stationary'|'occluded'|'trough'|'dryline'|'H'|'L'|'text'|'arrow'|'hurricane'|'tropical-storm'; points: [number,number][]; text: string; origin: 'operator'|'WPC'; }
 export interface Frame { time: number; key: string; }
-export interface SceneSettings { titleLayout?: {x:number;y:number;width:number}; textOverrides?: Record<string,string>; title: string; subtitle: string; lower: string; opacity: number; titleVisible: boolean; legendVisible: boolean; labels: boolean; detailsVisible: boolean; objects: WeatherObject[]; windowMinutes: number; loop: boolean; background: 'none'|'radar'|'satellite'; forecastTime: string; storm: string; manualSurface: boolean; contours: boolean; }
+export interface SceneSettings { barStyles?: BarStyles; titleLayout?: {x:number;y:number;width:number}; textOverrides?: Record<string,string>; title: string; subtitle: string; lower: string; opacity: number; titleVisible: boolean; legendVisible: boolean; labels: boolean; detailsVisible: boolean; objects: WeatherObject[]; windowMinutes: number; loop: boolean; background: 'none'|'radar'|'satellite'; forecastTime: string; storm: string; manualSurface: boolean; contours: boolean; }
 export const defaults = (): SceneSettings => ({title:'',subtitle:'',lower:'',opacity:.72,titleVisible:true,legendVisible:true,labels:true,detailsVisible:false,objects:[],windowMinutes:5,loop:true,background:'none',forecastTime:'',storm:'',manualSurface:false,contours:false});
 export interface Payload { timeLabel?: string; time: number|null; expires: number|null; data?: FeatureCollection; objects?: WeatherObject[]; image?: string; coordinates?: [number,number][]; legend?: {label:string;color:string}[]; note?: string; }
 export interface PackSnapshot { productId: string|null; settings: SceneSettings; payload: Payload|null; backgroundPayload?: Payload|null; status: string; frames: Frame[]; index: number; }

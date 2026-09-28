@@ -1,3 +1,5 @@
+import { BarLibrary } from './BarLibrary';
+import { barPresentation, type BarStyles } from './barStyles';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
 import { changeLayout, constrain, freshCopy, freshLayouts, sizes, titleText, type Copy, type Kind, type Layout, type Scene } from './state';
 import './graphics.css';
@@ -22,12 +24,19 @@ export function useGraphicsSnapshot(): GraphicsSnapshot {
 }
 export function GraphicsProvider({ scene, children, extraKeys = [] }: { scene: Scene | null; children: ReactNode; extraKeys?: readonly WeatherKey[] }) {
   const [copies, setCopies] = useState<Record<string, Copy>>({});
+  const [styles, setStyles] = useState<Record<string, BarStyles>>(() => {
+    try { const saved = JSON.parse(localStorage.getItem('rbrwx-graphic-bar-styles-v1') ?? '{}'); return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}; } catch { return {}; }
+  });
+  useEffect(() => { try { localStorage.setItem('rbrwx-graphic-bar-styles-v1', JSON.stringify(styles)); } catch { /* Keep editing if storage is unavailable. */ } }, [styles]);
   const [visible, setVisible] = useState({ title: false, lower: false, ticker: false });
   const [layouts, setLayouts] = useState(freshLayouts);
   const id = scene?.id ?? 'startup';
-  const copy = copies[id] ?? freshCopy();
+  const copy = { ...(copies[id] ?? freshCopy()), barStyles: styles[id] };
   return <Context.Provider value={{ scene, copy, visible, layouts, extraKeys,
-    edit: patch => setCopies(old => ({ ...old, [id]: { ...(old[id] ?? freshCopy()), ...patch } })),
+    edit: patch => {
+      if (patch.barStyles !== undefined) setStyles(old => ({ ...old, [id]: patch.barStyles! }));
+      setCopies(old => ({ ...old, [id]: { ...(old[id] ?? freshCopy()), ...patch } }));
+    },
     toggle: kind => setVisible(old => ({ ...old, [kind]: !old[kind] })),
     position: (kind, layout) => setLayouts(old => ({ ...old, [kind]: constrain(kind, layout) })),
   }}>{children}</Context.Provider>;
@@ -49,6 +58,7 @@ function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
   const { scene, copy, edit, layouts, position, extraKeys } = useGraphics();
   const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId, extraKeys) : undefined;
   const layout = layouts[kind];
+  const appearance = barPresentation(copy.barStyles?.[kind]);
   const gesture = useRef<{ x: number; y: number; start: Layout; resize: boolean; id: number } | null>(null);
   const [width, height] = sizes[kind];
   function down(event: PointerEvent<HTMLDivElement>) {
@@ -57,7 +67,7 @@ function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
     gesture.current = { x: event.clientX, y: event.clientY, start: { ...layout }, resize: box.right - event.clientX < 14 && box.bottom - event.clientY < 14, id: event.pointerId };
     event.stopPropagation(); (event.target as HTMLElement).setPointerCapture(event.pointerId);
   }
-  return <div className={`wxg-bar wxg-${kind}${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} style={{ left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})` }}
+  return <div className={`wxg-bar wxg-${kind}${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} data-bar-design={appearance.design} style={{ ...appearance.style, left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})` }}
     onPointerDown={down}
     onPointerMove={event => { const g = gesture.current; if (!g || g.id !== event.pointerId) return; event.stopPropagation(); position(kind, changeLayout(kind, g.start, (event.clientX - g.x) / viewScale, (event.clientY - g.y) / viewScale, g.resize)); }}
     onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
@@ -84,9 +94,10 @@ function SnapshotBar({ kind, snapshot, extraKeys }: { kind: Kind; snapshot: Grap
   const { scene, copy, layouts } = snapshot;
   const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId, extraKeys) : undefined;
   const layout = layouts[kind];
+  const appearance = barPresentation(copy.barStyles?.[kind]);
   const [width, height] = sizes[kind];
   const value = kind === 'title' ? titleText(scene, copy) : copy[kind];
-  return <div className={`wxg-bar wxg-${kind} wxg-static${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} style={{ left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})`, pointerEvents: 'none' }}>
+  return <div className={`wxg-bar wxg-${kind} wxg-static${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} data-bar-design={appearance.design} style={{ ...appearance.style, left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})`, pointerEvents: 'none' }}>
     <div className="wxg-text">{kind === 'ticker' ? <span className="wxg-crawl">{value}</span> : value}</div>
     {weatherKey && <TitleKey value={weatherKey} />}
   </div>;
@@ -108,6 +119,7 @@ export function GraphicsControls() {
   const { scene, copy, edit, visible, toggle, layouts, position, extraKeys } = useGraphics();
   return <section className="wxg-menu" aria-label="Graphics">
     <div className="panel-heading">GRAPHICS</div>
+    <BarLibrary value={copy.barStyles} onChange={barStyles => edit({ barStyles })} targets={['title', 'lower', 'ticker']} disabled={!scene} />
     {(['title', 'lower', 'ticker'] as Kind[]).map(kind => <label key={kind} className="wxg-toggle"><span>{kind === 'title' ? 'Title bar' : kind === 'lower' ? 'Lower third' : 'Ticker'}</span><input type="checkbox" checked={visible[kind]} onChange={() => toggle(kind)} /></label>)}
     <label>Title text<select aria-label="Title text" value={copy.manual ? 'blank' : 'scene'} onChange={event => edit(event.target.value === 'blank' ? { manual: true, title: '' } : { manual: false })}><option value="scene">Match scene</option><option value="blank">Blank / add text</option></select></label>
     <label>Title<input value={titleText(scene, copy)} onChange={event => edit({ manual: true, title: event.target.value })} /></label>
