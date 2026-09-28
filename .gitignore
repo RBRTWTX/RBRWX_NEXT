@@ -23,3 +23,6 @@ asset-library/svg/*
 .rbrwx-cp1a-v2-backup-*/
 .rbrwx-installer-stage-*/
 .rbrwx-installer-backup-*/
+
+# Local compiled desktop launcher state (never source or operator settings).
+.rbrwx-launcher/

@@ -17,7 +17,6 @@
     "src/current-weather/model.ts": "b25f96cf37fb07afc81059de3ac0f3adf139efcf52f4045b26a12c9b4718358c",
     "src/current-weather/observations.ts": "1640bfa3ab42ed89cbccebe1f7a941692bd26659af4130e6a6e8e27518c5e578",
     "src/current-weather/palettes.json": "16cd9fed28d53dd8b028151f6767021f82b2fa4e1d6e68ab98a8e36833883a01",
-    "src/current-weather/public-config.ts": "26a9226590c3f0d920f2d3052b43ce9dd22d7c72ada4ce05b114234872cb7104",
     "src/current-weather/public-imagery.ts": "74735f1ef9dd0a5d570eb22c238a789171fa4dc5c526e3c150028898ec477d45",
     "src/current-weather/weather.css": "780724b2ddb5ca6530574e98636321a2ae07cc39b303f889249e21847dbd7c55"
   }

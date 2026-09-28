@@ -2,11 +2,28 @@
 
 RBRWX NEXT is a clean rebuild of the broadcast weather workstation, beginning with a dedicated broadcast-cartography foundation rather than a generic consumer basemap.
 
-## Current release work
+## Start the application on Windows
 
-`0.1.0` — Broadcast Map Foundation
+Double-click **Launch RBRWX.cmd** in this folder. No manually entered PowerShell command is needed.
+For a desktop button, double-click **Create Desktop Shortcut.cmd** once, then use **RBRWX NEXT** on your desktop.
 
-This release intentionally focuses on the application shell and geographic rendering contract. Radar, satellite, models, alerts, and other weather products are not part of this checkpoint.
+The first launch (and the first launch after source changes) installs the pinned dependencies,
+runs verification, and builds the native application. Keep the progress window open until it
+finishes. Later launches open the compiled app and close the launcher window automatically.
+The app does not require a running Vite development server.
+
+The existing Node 22–24, pinned Rust toolchain, Windows C++ build tools, and WebView2 setup
+are still required. A failed build leaves the previous executable intact and reports the error;
+it does not silently launch an outdated version. Close the app before updating its source.
+Move the project? Run Create Desktop Shortcut.cmd again after removing the old shortcut.
+
+## Current checkpoint
+
+CP3A UI V3 includes the integrated broadcast workstation and the CP3A synoptic/hazard
+candidate. See docs/checkpoints/CP3A.md for provider scope and remaining acceptance work.
+The package version remains 0.1.0; older foundation documents describe their original checkpoints.
+
+See docs/checkpoints/PROJECT_CLEANUP_LAUNCHER.md for this maintenance audit and launch behavior.
 
 ## Runtime stack
 
