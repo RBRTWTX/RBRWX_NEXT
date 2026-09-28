@@ -1,0 +1,45 @@
+import {useEffect,useRef,useState,type PointerEvent} from 'react';
+import type {SceneSettings} from './model';
+export interface TitleLayout {x:number;y:number;width:number}
+export const titleLayout=():TitleLayout=>({x:3,y:3,width:94});
+export function layoutAfterDrag(start:TitleLayout,dx:number,dy:number,corner:string|undefined,canvas:{width:number;height:number},box:{width:number;height:number}):TitleLayout{
+ const px=dx/canvas.width*100,py=dy/canvas.height*100;
+ if(!corner)return {...start,x:Math.max(0,Math.min(100-start.width,start.x+px)),y:Math.max(0,Math.min(100-box.height/canvas.height*100,start.y+py))};
+ const sx=corner.includes('w')?-1:1,sy=corner.includes('n')?-1:1;
+ const factor=1+(sx*dx*box.width+sy*dy*box.height)/(box.width**2+box.height**2);
+ const maxWidth=sx<0?start.x+start.width:100-start.x;
+ const maxHeight=(sy<0?start.y+box.height/canvas.height*100:100-start.y)*canvas.height/100;
+ const width=Math.max(20,Math.min(maxWidth,start.width*maxHeight/box.height,start.width*factor));
+ const change=width/start.width;
+ return {width,x:sx<0?start.x+start.width-width:start.x,y:sy<0?start.y+box.height/canvas.height*100*(1-change):start.y};
+}
+export function EditableText({value,edit,label,className=''}:{value:string;edit?:(value:string)=>void;label:string;className?:string}){
+ const ref=useRef<HTMLSpanElement>(null),[editing,setEditing]=useState(false),cancel=useRef(false);
+ useEffect(()=>{if(editing&&ref.current){ref.current.textContent=value;ref.current.focus();const range=document.createRange();range.selectNodeContents(ref.current);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);}},[editing]);
+ return <span ref={ref} className={`synoptic-text ${className}`} aria-label={label} role={editing?'textbox':undefined} contentEditable={editing} suppressContentEditableWarning spellCheck={false}
+  tabIndex={edit?0:undefined} title={edit?'Double-click to edit; Enter saves; Escape cancels':undefined}
+  onDoubleClick={e=>{if(!edit)return;e.stopPropagation();cancel.current=false;setEditing(true);}}
+  onPointerDown={e=>{if(editing)e.stopPropagation();}}
+  onKeyDown={e=>{e.stopPropagation();if(!editing&&(e.key==='Enter'||e.key==='F2')&&edit){e.preventDefault();cancel.current=false;setEditing(true);}else if(editing&&e.key==='Escape'){cancel.current=true;e.currentTarget.textContent=value;e.currentTarget.blur();}else if(editing&&e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}}
+  onBlur={e=>{if(editing&&!cancel.current)edit?.((e.currentTarget.textContent??'').replace(/[\r\n]+/g,' '));setEditing(false);}}
+  onPaste={e=>{e.preventDefault();const text=e.clipboardData.getData('text/plain').replace(/[\r\n]+/g,' '),selection=window.getSelection();if(selection?.rangeCount){const range=selection.getRangeAt(0);range.deleteContents();const node=document.createTextNode(text);range.insertNode(node);range.setStartAfter(node);range.collapse(true);selection.removeAllRanges();selection.addRange(range);}}}
+ >{editing?undefined:value}</span>;
+}
+export function TitleBar({settings,title,time,legend,edit}:{settings:SceneSettings;title:string;time:string;legend?:{color:string;label:string}[];edit?:(patch:Partial<SceneSettings>)=>void}){
+ const ref=useRef<HTMLDivElement>(null),gesture=useRef<{start:TitleLayout;x:number;y:number;corner?:string;canvas:{width:number;height:number};box:{width:number;height:number}}|null>(null);
+ const [selected,setSelected]=useState(false),layout={...titleLayout(),...settings.titleLayout};
+ const text=(id:string,value:string)=>settings.textOverrides?.[id]??value;
+ const save=(id:string)=>edit?(value:string)=>edit({textOverrides:{...settings.textOverrides,[id]:value}}):undefined;
+ function down(e:PointerEvent<HTMLDivElement>){if(!edit||e.button!==0||(e.target as HTMLElement).isContentEditable)return;const frame=ref.current!,canvas=frame.parentElement!.getBoundingClientRect(),box=frame.getBoundingClientRect();gesture.current={start:layout,x:e.clientX,y:e.clientY,corner:(e.target as HTMLElement).dataset.corner,canvas,box};setSelected(true);e.stopPropagation();(e.target as HTMLElement).setPointerCapture(e.pointerId);}
+ return <div ref={ref} className={`synoptic-title-frame${edit?' is-editable':''}${selected?' is-selected':''}`} style={{left:`${layout.x}%`,top:`${layout.y}%`,width:`${layout.width}%`}} onPointerDown={down}
+  onPointerMove={e=>{const g=gesture.current;if(!g)return;e.stopPropagation();edit?.({titleLayout:layoutAfterDrag(g.start,e.clientX-g.x,e.clientY-g.y,g.corner,g.canvas,g.box)});}}
+  onPointerUp={e=>{gesture.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}} onPointerCancel={()=>{gesture.current=null;}} onLostPointerCapture={()=>{gesture.current=null;}}
+  onKeyDown={e=>{if(e.key==='Escape')setSelected(false);}}>
+  <header className="synoptic-title">
+   <div className="synoptic-title-main"><strong><EditableText label="Title text" value={text('title',title)} edit={save('title')}/></strong><b><EditableText label="Valid time text" value={text('time',time)} edit={save('time')}/></b></div>
+   {text('subtitle',settings.subtitle)&&<div className="synoptic-subtitle"><EditableText label="Subtitle text" value={text('subtitle',settings.subtitle)} edit={save('subtitle')}/></div>}
+   {settings.legendVisible&&!!legend?.length&&<div className="synoptic-title-keys" aria-label="Title bar keys">{legend.map((item,i)=><span key={`${item.label}-${i}`}><i style={{background:item.color}}/><EditableText label={`Key ${item.label}`} value={text(`key:${item.label}`,item.label)} edit={save(`key:${item.label}`)}/></span>)}</div>}
+  </header>
+  {edit&&(['nw','ne','sw','se'] as const).map(corner=><button type="button" key={corner} className={`synoptic-resize synoptic-resize--${corner}`} data-corner={corner} aria-label={`Scale title ${corner} corner`} onKeyDown={e=>{if(['ArrowLeft','ArrowDown','ArrowRight','ArrowUp'].includes(e.key)){e.preventDefault();const amount=e.key==='ArrowLeft'||e.key==='ArrowDown'?-1:1;edit({titleLayout:{...layout,width:Math.min(100-layout.x,Math.max(20,layout.width+amount))}});}}}/>)}
+ </div>;
+}

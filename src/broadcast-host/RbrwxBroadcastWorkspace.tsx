@@ -170,6 +170,8 @@ function CanvasHiddenMenu({
       onClick={() => setOpen(value => !value)}
     >RBRTW</button>
     {open && <div className="canvas-hidden-menu__panel" role="menu">
+      {synoptic.active ? <SynopticPlayback /> : <>
+      <WeatherPlayback />
       <div className="canvas-hidden-menu__transport">
         <button type="button" onClick={broadcast.previous} title="Previous scene">|◀</button>
         <button type="button" onClick={playing ? broadcast.pause : broadcast.play} disabled={!playing && !broadcast.canPlay} title={playing ? 'Pause rundown' : 'Play rundown'}>{playing ? 'Ⅱ' : '▶'}</button>
@@ -177,6 +179,8 @@ function CanvasHiddenMenu({
       </div>
       <button type="button" onClick={() => broadcast.setLoop(!broadcast.state.loop)}>LOOP {broadcast.state.loop ? 'ON' : 'OFF'}</button>
       <button type="button" onClick={() => void (synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : weather.controller.refresh())}>{qpf.active ? 'REFRESH QPF' : 'REFRESH WEATHER'}</button>
+      </>}
+      {synoptic.active&&<details><summary>Rundown</summary><div className="canvas-hidden-menu__transport"><button onClick={broadcast.previous} title="Previous scene">|◀</button><button onClick={playing?broadcast.pause:broadcast.play}>{playing?'Ⅱ':'▶'}</button><button onClick={broadcast.next} title="Next scene">▶|</button></div></details>}
       <button type="button" onClick={onPopout}>POP OUT CANVAS</button>
       <button type="button" onClick={() => { setOpen(false); onAvailableChange(false); }}>HIDE RBRTW BUTTON</button>
     </div>}
@@ -185,21 +189,12 @@ function CanvasHiddenMenu({
 
 function OperatorTransport({ onPopout }: { onPopout: () => void }) {
   const broadcast = useBroadcast();
-  const forecast = useForecastGraphics();
-  const qpf = useQpf();
-  const synoptic = useSynoptic();
-  const playing = broadcast.state.transport === 'playing';
   return <section className="operator-transport" aria-label="Operator transport">
     <div className="operator-transport__show">
       <span className="operator-transport__group-label">SHOW</span>
-      <button type="button" onClick={broadcast.previous} title="Previous scene">|◀</button>
-      <button className="operator-transport__primary" type="button" onClick={playing ? broadcast.pause : broadcast.play} disabled={!playing && !broadcast.canPlay}>{playing ? 'Ⅱ' : '▶'}</button>
-      <button type="button" onClick={broadcast.next} title="Next scene">▶|</button>
       <button className="operator-transport__take" type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE</button>
     </div>
-    <div className="operator-transport__weather">
-      {synoptic.active ? <SynopticPlayback /> : forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : qpf.active ? <span className="operator-transport__graphic-label">WPC QPF · STATIC</span> : <WeatherPlayback />}
-    </div>
+    <div className="operator-transport__weather"><span className="operator-transport__graphic-label">Playback controls in RBRTW menu</span></div>
     <button className="operator-popout" type="button" onClick={onPopout}>POP OUT CANVAS</button>
   </section>;
 }
@@ -325,7 +320,7 @@ function ContextDock({
         ><span className="layer-toggle__lamp" /><span>SHOW LOOP</span><b>{broadcast.state.loop ? 'ON' : 'OFF'}</b></button>
       </>}
 
-      {tab === 'palettes' && <GraphicsControls />}
+      {tab === 'palettes' && (synoptic.active ? <SynopticControls /> : <GraphicsControls />)}
 
       {tab === 'tools' && <>
         {forecast.active ? <ForecastGraphicTools /> : <>
@@ -455,7 +450,11 @@ function OperatorWorkspace({
     let cancelled = false;
     let busy = false;
     const apply = (action: OperatorAction) => {
-      if (action === 'previous') broadcast.previous();
+      if (synoptic.active && action === 'previous') synoptic.step(-1);
+      else if (synoptic.active && action === 'next') synoptic.step(1);
+      else if (synoptic.active && action === 'play-pause') synoptic.play();
+      else if (synoptic.active && action === 'loop') synoptic.edit({loop:!synoptic.snapshot.settings.loop});
+      else if (action === 'previous') broadcast.previous();
       else if (action === 'play-pause') broadcast.state.transport === 'playing' ? broadcast.pause() : broadcast.play();
       else if (action === 'next') broadcast.next();
       else if (action === 'loop') broadcast.setLoop(!broadcast.state.loop);
@@ -477,7 +476,7 @@ function OperatorWorkspace({
     void poll();
     const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [broadcast, qpf.active, qpf.controller, setHiddenMenuAvailable, weather.controller]);
+  }, [broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather.controller]);
 
   return <main className="app-shell rbrwx-broadcast-workspace">
     <header className="topbar operator-topbar">
