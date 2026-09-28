@@ -180,7 +180,15 @@ function CanvasHiddenMenu({
       <button type="button" onClick={() => broadcast.setLoop(!broadcast.state.loop)}>LOOP {broadcast.state.loop ? 'ON' : 'OFF'}</button>
       <button type="button" onClick={() => void (synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : weather.controller.refresh())}>{qpf.active ? 'REFRESH QPF' : 'REFRESH WEATHER'}</button>
       </>}
-      {synoptic.active&&<details><summary>Rundown</summary><div className="canvas-hidden-menu__transport"><button onClick={broadcast.previous} title="Previous scene">|◀</button><button onClick={playing?broadcast.pause:broadcast.play}>{playing?'Ⅱ':'▶'}</button><button onClick={broadcast.next} title="Next scene">▶|</button></div></details>}
+      {synoptic.active&&<details><summary>Rundown</summary>
+        <div className="canvas-hidden-menu__transport">
+          <button onClick={broadcast.previous} title="Previous scene">|◀</button>
+          <button onClick={playing?broadcast.pause:broadcast.play} disabled={!playing&&!broadcast.canPlay} title={playing?'Pause rundown':'Play rundown'}>{playing?'Ⅱ':'▶'}</button>
+          <button onClick={broadcast.next} title="Next scene">▶|</button>
+        </div>
+        <button type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE PREVIEW</button>
+        <button type="button" onClick={()=>broadcast.setLoop(!broadcast.state.loop)}>SHOW LOOP {broadcast.state.loop?'ON':'OFF'}</button>
+      </details>}
       <button type="button" onClick={onPopout}>POP OUT CANVAS</button>
       <button type="button" onClick={() => { setOpen(false); onAvailableChange(false); }}>HIDE RBRTW BUTTON</button>
     </div>}
@@ -189,12 +197,21 @@ function CanvasHiddenMenu({
 
 function OperatorTransport({ onPopout }: { onPopout: () => void }) {
   const broadcast = useBroadcast();
+  const forecast = useForecastGraphics();
+  const qpf = useQpf();
+  const synoptic = useSynoptic();
+  const playing = broadcast.state.transport === 'playing';
   return <section className="operator-transport" aria-label="Operator transport">
     <div className="operator-transport__show">
       <span className="operator-transport__group-label">SHOW</span>
+      <button type="button" onClick={broadcast.previous} title="Previous scene">|◀</button>
+      <button className="operator-transport__primary" type="button" onClick={playing ? broadcast.pause : broadcast.play} disabled={!playing && !broadcast.canPlay}>{playing ? 'Ⅱ' : '▶'}</button>
+      <button type="button" onClick={broadcast.next} title="Next scene">▶|</button>
       <button className="operator-transport__take" type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE</button>
     </div>
-    <div className="operator-transport__weather"><span className="operator-transport__graphic-label">Playback controls in RBRTW menu</span></div>
+    <div className="operator-transport__weather">
+      {synoptic.active ? <SynopticPlayback /> : forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : qpf.active ? <span className="operator-transport__graphic-label">WPC QPF · STATIC</span> : <WeatherPlayback />}
+    </div>
     <button className="operator-popout" type="button" onClick={onPopout}>POP OUT CANVAS</button>
   </section>;
 }

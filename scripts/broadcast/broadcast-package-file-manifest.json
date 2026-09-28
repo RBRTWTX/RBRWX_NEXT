@@ -19,7 +19,7 @@
     "src/broadcast-host/CurrentWeatherHost.tsx": "ab559a80d8e24b4cfb24a9ba0814876225c0c8ca7106285e26b7e4008b8d7f51",
     "src/broadcast-host/ForecastGraphicsHost.tsx": "a1836ee7aedb03dda6b0155118475e8f3d73b495c3b876daa6c94db993225fae",
     "src/broadcast-host/QpfHost.tsx": "78ccebf982fb513156c548ee6153d88206f5b24273253b095bcab19868afc6a3",
-    "src/broadcast-host/RbrwxBroadcastWorkspace.tsx": "3b24c11a710571e4fcd1e192d5808c4a74c4cb30c086cc02a28bb038b85f78f2",
+    "src/broadcast-host/RbrwxBroadcastWorkspace.tsx": "ce6cccf7ce1b336203840b821295232f649b6d180e91fc629f2a756eedf31f57",
     "src/broadcast-host/broadcastHost.css": "045f390453b9cff589a5a618a1454e7b412884f3ad49e0b9f89c3173a15f7b26",
     "src/broadcast-host/sceneCatalog.ts": "1865909461a946ecfe59c92cede0e96a575615b7a4ee65ba1057293e179be896",
     "src/broadcast/BroadcastProvider.tsx": "6025ef6e942287a4de1d4fc2906144fc8136def65428179cfe09f8a7b4eb5825",

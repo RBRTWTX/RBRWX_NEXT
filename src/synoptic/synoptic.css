@@ -25,3 +25,11 @@
 .canvas-hidden-menu__panel .synoptic-playback{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.canvas-hidden-menu__panel .synoptic-playback span{grid-column:1/-1}.canvas-hidden-menu__panel summary{font-size:12px;color:white;cursor:pointer}
 
 .synoptic-controls>button{font-size:12px;margin:3px 3px 3px 0}.synoptic-controls>small{display:block;font-size:11px;line-height:1.4;margin:7px 0}
+
+/* Keep hidden-menu controls inside the panel at Windows display scaling. */
+.rbrwx-broadcast-workspace .canvas-hidden-menu__panel{width:240px;max-width:calc(100vw - 32px);box-sizing:border-box}
+.canvas-hidden-menu__panel .synoptic-playback{grid-template-columns:repeat(3,minmax(0,1fr));min-width:0}
+.canvas-hidden-menu__panel button{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
+.canvas-hidden-menu__panel .synoptic-playback button{font-size:12px;padding:7px 4px}
+.canvas-hidden-menu__panel details>button{display:block;width:100%;margin-top:4px;min-height:26px;color:#dfe4e7;background:#36393b;border:1px solid #575c5f;font-size:11px}
+.canvas-hidden-menu__panel .wx-weather-playback{flex-wrap:wrap}
