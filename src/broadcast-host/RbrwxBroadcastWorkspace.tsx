@@ -1,3 +1,7 @@
+import { SynopticHost, SynopticOverlay, SynopticControls, SynopticPlayback, SynopticShell, useSynoptic } from '../synoptic/Scene';
+import { SynopticRuntime } from '../synoptic/runtime';
+import { emptyPack, type PackSnapshot } from '../synoptic/model';
+import type { Map as SynopticMap } from 'maplibre-gl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { BroadcastMap, type MapHealth } from '../map/BroadcastMap';
@@ -75,6 +79,7 @@ interface CapturePresentationState {
   graphics: GraphicsSnapshot;
   forecastGraphics: ForecastGraphicsSnapshot;
   qpf: QpfSnapshot;
+  synoptic: PackSnapshot;
   hiddenMenuAvailable: boolean;
 }
 
@@ -88,7 +93,7 @@ const healthLabel: Record<MapHealth, string> = {
 function contentKeyToBasemapMode(contentKey: string): BroadcastBasemapMode | null {
   if (contentKey === 'map.broadcast') return 'broadcast';
   if (contentKey === 'map.satellite') return 'satellite';
-  if (contentKey.startsWith('current.') || contentKey.startsWith('qpf.')) return 'broadcast';
+  if (contentKey.startsWith('current.') || contentKey.startsWith('qpf.') || contentKey.startsWith('synoptic.')) return 'broadcast';
   return null;
 }
 
@@ -100,9 +105,10 @@ function CanvasTimeline() {
   const { product, snapshot, controller } = useCurrentWeather();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
-  const times = forecast.active || qpf.active ? [] : snapshot.times;
-  const selected = forecast.active || qpf.active ? null : snapshot.selectedTime;
-  const animated = !forecast.active && !qpf.active && (product === 'radar' || product === 'satellite');
+  const synoptic = useSynoptic();
+  const times = synoptic.active ? synoptic.snapshot.frames.map(f=>f.time) : forecast.active || qpf.active ? [] : snapshot.times;
+  const selected = synoptic.active ? synoptic.snapshot.payload?.time ?? null : forecast.active || qpf.active ? null : snapshot.selectedTime;
+  const animated = synoptic.active ? times.length > 1 : !forecast.active && !qpf.active && (product === 'radar' || product === 'satellite');
   const markers = times.length > 24
     ? times.filter((_, index) => index === 0 || index === times.length - 1 || index % Math.ceil(times.length / 22) === 0)
     : times;
@@ -126,7 +132,7 @@ function CanvasTimeline() {
           className={`operator-timeline__marker ${active ? 'operator-timeline__marker--active' : ''}`}
           style={{ left: `${left}%` }}
           title={new Date(time).toLocaleString()}
-          onClick={() => void controller.seek(time)}
+          onClick={() => void (synoptic.active ? synoptic.controller.loadFrame(times.indexOf(time)) : controller.seek(time))}
         />;
       })}
       {!animated && <span className="operator-timeline__static-marker" />}
@@ -150,6 +156,7 @@ function CanvasHiddenMenu({
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
   const qpf = useQpf();
+  const synoptic = useSynoptic();
   const [open, setOpen] = useState(false);
   if (!available) return null;
   const playing = broadcast.state.transport === 'playing';
@@ -169,7 +176,7 @@ function CanvasHiddenMenu({
         <button type="button" onClick={broadcast.next} title="Next scene">▶|</button>
       </div>
       <button type="button" onClick={() => broadcast.setLoop(!broadcast.state.loop)}>LOOP {broadcast.state.loop ? 'ON' : 'OFF'}</button>
-      <button type="button" onClick={() => void (qpf.active ? qpf.controller.refresh() : weather.controller.refresh())}>{qpf.active ? 'REFRESH QPF' : 'REFRESH WEATHER'}</button>
+      <button type="button" onClick={() => void (synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : weather.controller.refresh())}>{qpf.active ? 'REFRESH QPF' : 'REFRESH WEATHER'}</button>
       <button type="button" onClick={onPopout}>POP OUT CANVAS</button>
       <button type="button" onClick={() => { setOpen(false); onAvailableChange(false); }}>HIDE RBRTW BUTTON</button>
     </div>}
@@ -180,6 +187,7 @@ function OperatorTransport({ onPopout }: { onPopout: () => void }) {
   const broadcast = useBroadcast();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
+  const synoptic = useSynoptic();
   const playing = broadcast.state.transport === 'playing';
   return <section className="operator-transport" aria-label="Operator transport">
     <div className="operator-transport__show">
@@ -190,7 +198,7 @@ function OperatorTransport({ onPopout }: { onPopout: () => void }) {
       <button className="operator-transport__take" type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE</button>
     </div>
     <div className="operator-transport__weather">
-      {forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : qpf.active ? <span className="operator-transport__graphic-label">WPC QPF · STATIC</span> : <WeatherPlayback />}
+      {synoptic.active ? <SynopticPlayback /> : forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : qpf.active ? <span className="operator-transport__graphic-label">WPC QPF · STATIC</span> : <WeatherPlayback />}
     </div>
     <button className="operator-popout" type="button" onClick={onPopout}>POP OUT CANVAS</button>
   </section>;
@@ -266,6 +274,7 @@ function ContextDock({
   const graphics = useGraphicsSnapshot();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
+  const synoptic = useSynoptic();
 
   return <aside className="control-panel operator-context-dock">
     <div className="operator-context-tabs">
@@ -277,7 +286,7 @@ function ContextDock({
     <div className="operator-context-body">
       {tab === 'properties' && <>
         {forecast.active ? <ForecastGraphicProperties /> : <>
-          {qpf.active ? <QpfControls /> : <WeatherControls />}
+          {synoptic.active ? <SynopticControls /> : qpf.active ? <QpfControls /> : <WeatherControls />}
           <div className="panel-divider" />
           <div className="panel-heading"><span>BASEMAP</span><small>scene presentation</small></div>
           {(['broadcast', 'satellite'] as BroadcastBasemapMode[]).map(mode => <button
@@ -392,6 +401,7 @@ function OperatorWorkspace({
   const graphics = useGraphicsSnapshot();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
+  const synoptic = useSynoptic();
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [rightTab, setRightTab] = useState<ContextTab>('properties');
   const [contentTab, setContentTab] = useState<ContentTab>('scenes');
@@ -429,8 +439,9 @@ function OperatorWorkspace({
     graphics,
     forecastGraphics: forecast.snapshot,
     qpf: qpf.snapshot,
+    synoptic: synoptic.snapshot,
     hiddenMenuAvailable,
-  }), [basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, forecast.snapshot, graphics, hiddenMenuAvailable, qpf.snapshot, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
+  }), [basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, forecast.snapshot, graphics, hiddenMenuAvailable, qpf.snapshot, synoptic.snapshot, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
 
   useEffect(() => {
     if (publishTimer.current) clearTimeout(publishTimer.current);
@@ -448,7 +459,7 @@ function OperatorWorkspace({
       else if (action === 'play-pause') broadcast.state.transport === 'playing' ? broadcast.pause() : broadcast.play();
       else if (action === 'next') broadcast.next();
       else if (action === 'loop') broadcast.setLoop(!broadcast.state.loop);
-      else if (action === 'refresh') void (qpf.active ? qpf.controller.refresh() : weather.controller.refresh());
+      else if (action === 'refresh') void (synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : weather.controller.refresh());
       else if (action === 'hide-menu') setHiddenMenuAvailable(false);
     };
     const poll = async () => {
@@ -492,7 +503,7 @@ function OperatorWorkspace({
     <section className="map-stage operator-canvas-stage">
       <div className={`operator-map-layer ${forecast.active ? 'operator-map-layer--behind-graphic' : ''}`}>
         <WeatherMapConnection>{weatherConnect => <QpfMapConnection>{qpfConnect => <BroadcastMap
-          onMapReady={map => { const releaseWeather = weatherConnect(map); const releaseQpf = qpfConnect(map); return () => { releaseQpf(); releaseWeather(); }; }}
+          onMapReady={map => { const releaseWeather = weatherConnect(map); const releaseQpf = qpfConnect(map); const releaseSynoptic = synoptic.connect(map); return () => { releaseSynoptic(); releaseQpf(); releaseWeather(); }; }}
           basemapMode={basemapMode}
           visibility={visibility}
           onHealthChange={(nextHealth, message) => {
@@ -504,7 +515,7 @@ function OperatorWorkspace({
         />}</QpfMapConnection>}</WeatherMapConnection>
       </div>
       {forecast.active && <ForecastGraphicEditorStage />}
-      <GraphicsOverlay />
+      {synoptic.active ? <SynopticOverlay /> : <GraphicsOverlay />}
       <CanvasHiddenMenu available={hiddenMenuAvailable} onAvailableChange={setHiddenMenuAvailable} onPopout={openPopout} />
     </section>
 
@@ -548,7 +559,7 @@ function RbrwxOperatorWorkspaceRoot() {
     <CurrentWeatherHost>
       <GraphicsHost>
         <ForecastGraphicsHost>
-          <QpfHost>
+          <QpfHost><SynopticHost>
           <OperatorWorkspace
           basemapMode={basemapMode}
           setBasemapMode={setBasemapMode}
@@ -563,7 +574,7 @@ function RbrwxOperatorWorkspaceRoot() {
           hiddenMenuAvailable={hiddenMenuAvailable}
           setHiddenMenuAvailable={setHiddenMenuAvailable}
           />
-          </QpfHost>
+          </SynopticHost></QpfHost>
         </ForecastGraphicsHost>
       </GraphicsHost>
     </CurrentWeatherHost>
@@ -599,6 +610,10 @@ function CaptureWeatherCanvas({ state }: { state: CapturePresentationState }) {
   const controller = useMemo(() => new CurrentWeatherController(setSnapshot), []);
   const qpfController = useMemo(() => new QpfController(() => undefined), []);
   const radarSync = useRef(false);
+  const synopticController = useMemo(() => new SynopticRuntime(() => undefined), []);
+  const [synopticMap, setSynopticMap] = useState<SynopticMap | null>(null);
+  useEffect(() => { if (synopticMap) synopticController.renderSnapshot(state.synoptic ?? emptyPack()); }, [synopticController, synopticMap, state.synoptic]);
+  useEffect(() => () => synopticController.disconnect(), [synopticController]);
 
   useEffect(() => () => { controller.destroy(); qpfController.destroy(); }, [controller, qpfController]);
   useEffect(() => {
@@ -643,14 +658,14 @@ function CaptureWeatherCanvas({ state }: { state: CapturePresentationState }) {
 
   return <section className="capture-canvas-stage">
     {state.forecastGraphics.active ? <ForecastGraphicSnapshotStage snapshot={state.forecastGraphics} /> : <BroadcastMap
-      onMapReady={map => { const releaseWeather = controller.connect(map, 'rbrwx-county-boundary'); const releaseQpf = qpfController.connect(map, 'rbrwx-county-boundary'); return () => { releaseQpf(); releaseWeather(); }; }}
+      onMapReady={map => { const releaseWeather = controller.connect(map, 'rbrwx-county-boundary'); const releaseQpf = qpfController.connect(map, 'rbrwx-county-boundary'); const releaseSynoptic = synopticController.connect(map); setSynopticMap(map); return () => { releaseSynoptic(); releaseQpf(); releaseWeather(); }; }}
       basemapMode={state.basemapMode}
       visibility={state.visibility}
       camera={state.camera}
       interactive={false}
       onHealthChange={() => undefined}
     />}
-    <GraphicsSnapshotOverlay snapshot={state.graphics} extraKeys={palettes.keys} />
+    {state.synoptic?.productId ? <SynopticShell snapshot={state.synoptic} map={synopticMap} /> : <GraphicsSnapshotOverlay snapshot={state.graphics} extraKeys={palettes.keys} />}
     <CaptureHiddenMenu available={state.hiddenMenuAvailable} />
   </section>;
 }

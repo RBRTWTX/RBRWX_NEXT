@@ -60,17 +60,8 @@ export function runContractAudit(root = DEFAULT_ROOT, { print = true } = {}) {
     "this.map.on('sourcedata', loaded)", 'currentLoadedTimeKey', 'paletteFallbackSites',
   ], 'Radar waits for MapLibre source load before replacing the prior completed frame and tracks palette fallback');
 
-  if (imagery && imagery.includes('await this.loadSite(id, times[times.length - 1]);')) {
-    findings.push(finding('RADAR-BAD-FRAME-FALLBACK', 'WARN', 'P0', 'Radar', 'Site radar always attempts the newest advertised frame first and does not probe older advertised frames when GeoServer advertises a corrupt/unrenderable granule.'));
-  } else {
-    findings.push(finding('RADAR-BAD-FRAME-FALLBACK', 'PASS', '—', 'Radar', 'Site radar does not use the known newest-only frame-loading path.'));
-  }
-
-  if (currentController && currentController.includes("freshness(time, this.product === 'radar' ? 15 : 30") && !imagery?.includes('RADAR_CURRENT_MAX_AGE')) {
-    findings.push(finding('RADAR-STALE-HARD-CUTOFF', 'WARN', 'P0', 'Radar', 'Radar freshness is reported as status only; stale site imagery is not hard-rejected before display.'));
-  } else {
-    findings.push(finding('RADAR-STALE-HARD-CUTOFF', 'PASS', '—', 'Radar', 'Radar has a hard stale-frame rejection contract.'));
-  }
+  requireTokens(findings, imagery, 'RADAR-BAD-FRAME-FALLBACK', 'Radar', ['loadNewestUsable', 'for (const time of candidates)', 'currentRadarTime(time)'], 'Runtime probes fresh advertised frames in newest-first order.');
+  requireTokens(findings, imagery, 'RADAR-STALE-HARD-CUTOFF', 'Radar', ['RADAR_CURRENT_MAX_AGE', 'expireSites()', 'frame expired during loading', 'stale frame removed'], 'Runtime removes stale imagery and rejects frames before promotion.');
 
   if (imagery && imagery.includes('WSR88D_REFLECTIVITY_SWEEP_RPM') && imagery.includes('sweepAngle')) {
     findings.push(finding('RADAR-SWEEP-SYNTHETIC', 'WARN', 'P1', 'Radar', 'Visible radar sweep wedge is an operator visualization, not measured real-time antenna azimuth.'));

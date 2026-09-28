@@ -8,8 +8,6 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const expectedWarnings = new Set([
   'OBS-IDW-SURFACE',
   'RADAR-SWEEP-SYNTHETIC',
-  'RADAR-BAD-FRAME-FALLBACK',
-  'RADAR-STALE-HARD-CUTOFF',
   'FORECAST-FIXED-LOCATION',
   'FORECAST-FETCH-TIME',
   'FORECAST-QUANTITY-UNITS-QC',

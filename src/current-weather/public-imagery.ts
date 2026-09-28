@@ -1,6 +1,11 @@
 import type { Map as WeatherMap } from 'maplibre-gl';
 import type { RadarSite } from './model';
 
+export const RADAR_CURRENT_MAX_AGE = 15 * 60 * 1000;
+export function currentRadarTime(time: number, now = Date.now(), limit = RADAR_CURRENT_MAX_AGE) {
+  return Number.isFinite(time) && time <= now + 60000 && now - time <= limit;
+}
+
 export type ImageryProduct = 'radar' | 'satellite';
 export const services = {
   radar: { url: 'https://nowcoast.noaa.gov/geoserver/observations/weather_radar/wms', layer: 'conus_base_reflectivity_mosaic' },
@@ -87,19 +92,33 @@ export class PublicImagery {
   private owned = new Set<string>();
   private moveTimer: ReturnType<typeof setTimeout> | null = null;
   private pending = false;
+  private expiryTimer: ReturnType<typeof setInterval> | null = null;
   private opacity: number;
   private prefix = `rbrwx-public-${Math.random().toString(36).slice(2)}`;
   constructor(private map: WeatherMap, private options: PublicImageryOptions) { this.opacity = options.opacity; }
   on(_event: string, listener: (state: Record<string, unknown>) => void) { this.listener = listener; }
   private emit() { this.listener?.({ availableTimestamps: this.times, mrmsTimestamp: this.selected }); }
-  async initialize() { this.map.on('moveend', this.move); this.map.on('resize', this.move); await this.refreshData(); }
+  async initialize() { this.expiryTimer = setInterval(() => this.expire(), 1000); this.map.on('moveend', this.move); this.map.on('resize', this.move); await this.refreshData(); }
   async refreshData() {
     const s = services[this.options.product];
     const response = await request(`${s.url}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`, this.lifetime.signal);
     const times = publishedTimes(await response.text(), s.layer);
     if (this.lifetime.signal.aborted) return;
-    this.times = times; this.emit();
-    await this.load(times[times.length - 1]);
+    this.times = this.options.product === 'radar' ? times.filter(t => currentRadarTime(t, Date.now(), 20 * 60000)) : times; this.emit();
+    if (this.options.product !== 'radar') { await this.load(times[times.length - 1]); return; }
+    let failure: unknown = Error('No MRMS frames within the current mosaic age limit');
+    for (const candidate of [...this.times].reverse()) {
+      if (this.lifetime.signal.aborted) return;
+      try { await this.load(candidate); return; } catch (error) { failure = error; }
+    }
+    this.expire(); throw failure;
+  }
+  private expire() {
+    if (this.options.product !== 'radar' || this.currentLoadedTimeKey === null || currentRadarTime(this.currentLoadedTimeKey, Date.now(), 20 * 60000)) return;
+    this.frame?.abort(); ++this.serial;
+    if (this.active) this.remove(this.active);
+    this.active = null; this.currentLoadedTimeKey = null; this.selected = null;
+    this.options.onError('MRMS unavailable: stale mosaic removed'); this.emit();
   }
   private move = () => { if (this.moveTimer) clearTimeout(this.moveTimer); this.moveTimer = setTimeout(() => { if (this.selected !== null) void this.load(this.selected).catch(e => this.options.onError(e instanceof Error ? e.message : 'NOAA image failed')); }, 400); };
   async setMRMSTimestamp(time: number) {
@@ -114,15 +133,17 @@ export class PublicImagery {
   private remove(id: string) { if (this.map.getLayer(id)) this.map.removeLayer(id); if (this.map.getSource(id)) this.map.removeSource(id); this.owned.delete(id); }
   private async load(time: number) {
     if (this.lifetime.signal.aborted || !this.times.includes(time)) return;
+    if (this.options.product === 'radar' && !currentRadarTime(time, Date.now(), 20 * 60000)) { this.expire(); throw Error('MRMS frame rejected: outside current mosaic age limit'); }
     this.frame?.abort(); const frame = new AbortController(); this.frame = frame;
     const signal = AbortSignal.any([frame.signal, this.lifetime.signal]); const serial = ++this.serial;
-    this.selected = time; this.pending = true; this.emit();
+    this.pending = true; this.emit();
     const view = viewportRequest(this.map);
     let id: string | null = null;
     try {
       const response = await request(imageRequest(this.options.product, time, view.mercator, view.width, view.height), signal);
       if (!response.headers.get('content-type')?.toLowerCase().includes('image/png')) throw Error('NOAA returned a service error instead of an image');
       const blob = await response.blob(); if (blob.size < 8) throw Error('NOAA returned an empty image');
+      const decoded = await createImageBitmap(blob); decoded.close();
       const url = await dataURL(blob); if (signal.aborted || serial !== this.serial) return;
       id = `${this.prefix}-${serial}`; const next = id; this.owned.add(next);
       await new Promise<void>((resolve, reject) => {
@@ -136,15 +157,16 @@ export class PublicImagery {
         catch (e) { finish(e instanceof Error ? e : Error('Could not add NOAA imagery')); }
       });
       if (signal.aborted || serial !== this.serial) return;
+      if (this.options.product === 'radar' && !currentRadarTime(time, Date.now(), 20 * 60000)) throw Error('MRMS frame expired during loading');
       const old = this.active; this.active = next; this.map.setPaintProperty(next, 'raster-opacity', this.opacity);
       if (old) this.remove(old);
       await new Promise<void>(resolve => { const done = () => { this.map.off('render', done); signal.removeEventListener('abort', done); resolve(); }; this.map.once('render', done); signal.addEventListener('abort', done, { once: true }); this.map.triggerRepaint(); });
-      if (!signal.aborted && serial === this.serial) { this.currentLoadedTimeKey = time; this.pending = false; }
+      if (!signal.aborted && serial === this.serial) { this.currentLoadedTimeKey = time; this.selected = time; this.pending = false; this.emit(); }
     } catch (e) { if (!signal.aborted) throw e; }
     finally { if (id && id !== this.active) this.remove(id); if (serial === this.serial) this.pending = false; }
   }
   get loading() { return this.pending; }
-  destroy() { this.lifetime.abort(); this.frame?.abort(); if (this.moveTimer) clearTimeout(this.moveTimer); this.map.off('moveend', this.move); this.map.off('resize', this.move); for (const id of [...this.owned]) this.remove(id); this.listener = null; }
+  destroy() { if (this.expiryTimer) clearInterval(this.expiryTimer); this.lifetime.abort(); this.frame?.abort(); if (this.moveTimer) clearTimeout(this.moveTimer); this.map.off('moveend', this.move); this.map.off('resize', this.move); for (const id of [...this.owned]) this.remove(id); this.listener = null; }
 }
 
 // Exact palette supplied for this project as RadarScope1 (1).pal.
@@ -271,6 +293,15 @@ export class RadarImagery {
   currentLoadedTimeKey: number | null = null;
   private listener: ((state: Record<string, unknown>) => void) | null = null;
   private lifetime = new AbortController();
+  private expiryTimer: ReturnType<typeof setInterval> | null = null;
+  private failures = new Map<string, string>();
+  get sourceLabel() {
+    const primary = this.activeIds[0];
+    const siteTime = primary ? this.runtimes.get(primary)?.selected : null;
+    if (siteTime != null) return `${primary} WSR-88D`;
+    return this.mosaic?.currentLoadedTimeKey != null ? 'MRMS MOSAIC · SITE RADAR UNAVAILABLE' : 'SITE RADAR UNAVAILABLE';
+  }
+  get statusDetail() { return [...this.failures.entries()].map(([id, reason]) => `${id}: ${reason}`).join('; '); }
   private siteFrames = new Map<string, AbortController>();
   private runtimes = new Map<string, RadarSiteRuntime>();
   private sites: RadarSite[] = [];
@@ -296,13 +327,15 @@ export class RadarImagery {
   on(_event: string, listener: (state: Record<string, unknown>) => void) { this.listener = listener; }
   private emit() {
     const primary = this.activeIds[0] ?? null, runtime = primary ? this.runtimes.get(primary) : undefined;
+    this.currentLoadedTimeKey = runtime?.selected ?? this.mosaic?.currentLoadedTimeKey ?? null;
     this.listener?.({
-      availableTimestamps: runtime?.times ?? [], mrmsTimestamp: runtime?.selected ?? null,
+      availableTimestamps: runtime?.times.filter(time => currentRadarTime(time)) ?? [], mrmsTimestamp: this.currentLoadedTimeKey,
       radarSites: this.sites, activeRadarIds: this.activeIds, primaryRadarId: primary, paletteFallback: primary ? this.paletteFallbackSites.has(primary) : false,
     });
   }
 
   async initialize() {
+    this.expiryTimer = setInterval(() => this.expireSites(), 1000);
     this.sites = await fetchRadarSites(this.lifetime.signal);
     this.installRadarSiteLayers();
     this.map.on('moveend', this.move); this.map.on('resize', this.move);
@@ -333,6 +366,7 @@ export class RadarImagery {
       onError: message => this.options.onNotice?.(`MRMS backup: ${message}`),
     });
     this.mosaic = mosaic;
+    mosaic.on('state:change', () => this.emit());
     try {
       await mosaic.initialize();
       const selected = this.activeIds[0] ? this.runtimes.get(this.activeIds[0])?.selected : null;
@@ -399,7 +433,7 @@ export class RadarImagery {
       return;
     }
     for (const id of this.activeIds) {
-      const site = this.sites.find(s => s.id === id); if (!site) continue;
+      const site = this.sites.find(s => s.id === id); if (!site || !currentRadarTime(this.runtimes.get(id)?.selected ?? NaN)) continue;
       const left = this.destination(site.lng, site.lat, this.sweepAngle - 4, 230), right = this.destination(site.lng, site.lat, this.sweepAngle + 4, 230), tip = this.destination(site.lng, site.lat, this.sweepAngle, 230);
       features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [[site.lng, site.lat], tip] }, properties: { kind: 'beam', id } });
       features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[site.lng, site.lat], left, tip, right, [site.lng, site.lat]]] }, properties: { kind: 'wedge', id } });
@@ -444,16 +478,40 @@ export class RadarImagery {
         const times = publishedTimes(capabilities, layer);
         const runtime = this.runtimes.get(id) ?? { layer, times: [], selected: null, activeLayer: null, serial: 0 };
         runtime.layer = layer; runtime.times = times; this.runtimes.set(id, runtime);
-        await this.loadSite(id, times[times.length - 1]);
-      } catch (error) { failures.push(`${radarShortId(id)}: ${error instanceof Error ? error.message : String(error)}`); }
+        await this.loadNewestUsable(id);
+      } catch (error) { const reason = error instanceof Error ? error.message : String(error); this.failures.set(id, reason); failures.push(`${radarShortId(id)}: ${reason}`); }
     }));
     const primarySelected = this.activeIds[0] ? this.runtimes.get(this.activeIds[0])?.selected : null;
     if (this.mosaic && primarySelected !== null && primarySelected !== undefined) {
       await this.mosaic.setMRMSTimestamp(primarySelected / 1000).catch(error => this.options.onNotice?.(`MRMS backup: ${error instanceof Error ? error.message : String(error)}`));
     }
     this.emit();
-    if (this.activeIds.length && failures.length === this.activeIds.length) throw Error(`NWS WSR-88D unavailable (${failures.join('; ')})`);
+    if (this.activeIds.length && failures.length === this.activeIds.length) this.options.onError(`${this.sourceLabel}: ${failures.join('; ')}`);
     if (failures.length) this.options.onNotice?.(`Some selected radars are unavailable: ${failures.join('; ')}`);
+  }
+
+  private expireSites() {
+    for (const [id, runtime] of this.runtimes) {
+      if (runtime.selected === null || currentRadarTime(runtime.selected)) continue;
+      this.siteFrames.get(id)?.abort(); ++runtime.serial;
+      if (runtime.activeLayer) this.remove(runtime.activeLayer);
+      runtime.activeLayer = null; runtime.selected = null;
+      this.failures.set(id, 'stale frame removed');
+    }
+    this.emit();
+  }
+
+  private async loadNewestUsable(id: string) {
+    this.expireSites();
+    const runtime = this.runtimes.get(id);
+    const candidates = (runtime?.times ?? []).filter(time => currentRadarTime(time)).sort((a, b) => b - a);
+    let lastError = 'No advertised frame is within the 15-minute current-radar age limit';
+    for (const time of candidates) {
+      if (this.lifetime.signal.aborted || !this.activeIds.includes(id)) return;
+      try { await this.loadSite(id, time); if (runtime?.selected === time) { this.failures.delete(id); this.emit(); return; } }
+      catch (error) { lastError = error instanceof Error ? error.message : String(error); }
+    }
+    throw Error(lastError);
   }
 
   private nearestTime(id: string, requested: number): number | null {
@@ -508,7 +566,7 @@ export class RadarImagery {
         const response = await request(radarCapabilities(id), this.lifetime.signal), capabilities = await response.text();
         const layer = radarReflectivityLayer(capabilities, id), times = publishedTimes(capabilities, layer);
         this.runtimes.set(id, { layer, times, selected: null, activeLayer: null, serial: 0 });
-        await this.loadSite(id, times[times.length - 1]);
+        await this.loadNewestUsable(id);
       } catch (error) { this.options.onError(`${radarShortId(id)} radar: ${error instanceof Error ? error.message : String(error)}`); }
     }
     this.currentLoadedTimeKey = this.activeIds[0] ? (this.runtimes.get(this.activeIds[0])?.selected ?? null) : null;
@@ -537,13 +595,15 @@ export class RadarImagery {
 
   private async loadSite(siteId: string, time: number) {
     const runtime = this.runtimes.get(siteId); if (!runtime || this.lifetime.signal.aborted || !runtime.times.includes(time)) return;
+    if (!currentRadarTime(time)) { this.expireSites(); throw Error(`${siteId} stale frame rejected`); }
     this.siteFrames.get(siteId)?.abort(); const frame = new AbortController(); this.siteFrames.set(siteId, frame);
-    const signal = AbortSignal.any([frame.signal, this.lifetime.signal]); const serial = ++runtime.serial; runtime.selected = time; this.emit();
+    const signal = AbortSignal.any([frame.signal, this.lifetime.signal]); const serial = ++runtime.serial; this.emit();
     const view = viewportRequest(this.map); let id: string | null = null;
     try {
       let response = await this.radarResponse(siteId, runtime.layer, time, view, signal);
       if (!response.headers.get('content-type')?.toLowerCase().includes('image/png')) throw Error(`${radarShortId(siteId)} returned a service error instead of radar imagery`);
       const blob = await response.blob(); if (blob.size < 8) throw Error(`${radarShortId(siteId)} returned an empty radar image`);
+      const decoded = await createImageBitmap(blob); decoded.close();
       const url = await dataURL(blob); if (signal.aborted || serial !== runtime.serial) return;
       id = `${this.prefix}-${siteId.toLowerCase()}-${serial}`; const next = id; this.owned.add(next);
       await new Promise<void>((resolve, reject) => {
@@ -559,9 +619,11 @@ export class RadarImagery {
         } catch (error) { finish(error instanceof Error ? error : Error(`Could not add ${radarShortId(siteId)} radar imagery`)); }
       });
       if (signal.aborted || serial !== runtime.serial) return;
+      if (!currentRadarTime(time)) throw Error(`${siteId} frame expired during loading`);
       const old = runtime.activeLayer; runtime.activeLayer = next; this.map.setPaintProperty(next, 'raster-opacity', this.opacity); if (old) this.remove(old);
       await new Promise<void>(resolve => { const done = () => { this.map.off('render', done); signal.removeEventListener('abort', done); resolve(); }; this.map.once('render', done); signal.addEventListener('abort', done, { once: true }); this.map.triggerRepaint(); });
       if (!signal.aborted && serial === runtime.serial) {
+        runtime.selected = time;
         if (siteId === this.activeIds[0]) this.currentLoadedTimeKey = time;
         this.emit();
       }
@@ -572,6 +634,7 @@ export class RadarImagery {
   get loading() { return [...this.siteFrames.values()].some(controller => !controller.signal.aborted) && this.currentLoadedTimeKey === null; }
 
   destroy() {
+    if (this.expiryTimer) clearInterval(this.expiryTimer);
     this.lifetime.abort(); for (const controller of this.siteFrames.values()) controller.abort();
     if (this.moveTimer) clearTimeout(this.moveTimer); if (this.sweepTimer) clearInterval(this.sweepTimer);
     this.map.off('moveend', this.move); this.map.off('resize', this.move);

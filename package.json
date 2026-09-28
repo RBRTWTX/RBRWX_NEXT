@@ -21,14 +21,19 @@
     "native:assets": "node scripts/validate-native-assets.mjs",
     "verify:foundation": "npm run map:integrity && npm run native:assets && npm run map:contract && npm run map:style && npm run map:provider:test",
     "verify:modules": "node scripts/broadcast/verify-broadcast.mjs && node scripts/graphics/verify.mjs && node scripts/current-weather/verify.mjs && node scripts/forecast-graphics/verify.mjs && node scripts/qpf/verify.mjs",
-    "verify": "npm run repo:integrity && npm run repo:installer && npm run weather:audit:test && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
+    "verify": "npm run repo:integrity && npm run repo:installer && npm run weather:audit:test && npm run synoptic:test && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
     "verify:live": "npm run map:provider && npm run weather:audit",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "synoptic:test": "node --test scripts/synoptic/*.test.mjs"
   },
   "dependencies": {
+    "@azohra/meteo.grib": "0.1.4",
+    "@azohra/meteo.j2k": "0.2.0",
     "@tauri-apps/api": "2.11.1",
+    "fast-png": "8.0.0",
+    "h5wasm": "0.10.3",
     "maplibre-gl": "6.8.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"

@@ -30,6 +30,8 @@ const currentFieldLayerId = 'rbrwx-current-condition-field-raster';
 type ManagerState = Record<string, unknown>;
 interface WeatherManager {
   currentLoadedTimeKey: number | null;
+  sourceLabel?: string;
+  statusDetail?: string;
   on(event: string, listener: (state: ManagerState) => void): void;
   initialize(): Promise<void>;
   refreshData(): Promise<void>;
@@ -320,11 +322,13 @@ export class CurrentWeatherController {
       let label = 'NOAA GOES East/West infrared · Band 14';
       if (this.product === 'radar') {
         const id = this.snapshot.primaryRadarId ?? 'KEWX', shortId = id.startsWith('K') ? id.slice(1) : id;
-        label = `${shortId} WSR-88D · SR_BREF · ${this.paletteFallback ? 'NWS palette fallback' : 'RadarScope palette'}`;
+        label = `${manager.sourceLabel ?? `${shortId} WSR-88D`} · ${manager.sourceLabel?.startsWith('MRMS') ? 'NOAA mosaic palette' : `SR_BREF · ${this.paletteFallback ? 'NWS palette fallback' : 'RadarScope palette'}`}`;
       }
       this.emit({ time, status, message: `${label} · ${status.toUpperCase()} · ${new Date(time).toLocaleString()}` });
+    } else if (this.product === 'radar' && manager.statusDetail) {
+      this.emit({ time: null, status: 'unavailable', message: `${manager.sourceLabel} · ${manager.statusDetail}` });
     } else if (this.product === 'radar' && !this.snapshot.activeRadarIds.length) {
-      this.emit({ time: null, status: 'off', message: this.options.mrmsEnabled ? 'No site radar selected · MRMS backup mosaic active' : 'No radar site selected · click a radar tower or choose one from the menu' });
+      this.emit({ time: null, status: 'off', message: this.options.mrmsEnabled ? (this.manager?.currentLoadedTimeKey != null ? 'MRMS MOSAIC · no site radar selected' : 'RADAR UNAVAILABLE · no current MRMS or site frame') : 'No radar site selected · click a radar tower or choose one from the menu' });
     } else if (Date.now() - this.loadStarted > 60000) this.emit({ time: null, status: 'unavailable', message: 'No NOAA imagery loaded. Check the connection, then Refresh.' });
   }
 

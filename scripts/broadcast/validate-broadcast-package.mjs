@@ -69,7 +69,7 @@ for (const relative of mapFiles) {
   if (hasDynamicNonliteral) continue;
   for (const spec of specs) {
     const resolved = normalizeResolvedImport(relative, spec);
-    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf'))) fail(`${relative} imports workstation/graphic code via ${spec}; map must remain independent.`);
+    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf') || isWithin(resolved, 'src/synoptic'))) fail(`${relative} imports workstation/graphic code via ${spec}; map must remain independent.`);
   }
 }
 
@@ -79,7 +79,7 @@ for (const relative of currentWeatherFiles) {
   if (hasDynamicNonliteral) continue;
   for (const spec of specs) {
     const resolved = normalizeResolvedImport(relative, spec);
-    if (resolved && (isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf'))) fail(`${relative} imports workstation extension code via ${spec}; current weather must remain independent.`);
+    if (resolved && (isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf') || isWithin(resolved, 'src/synoptic'))) fail(`${relative} imports workstation extension code via ${spec}; current weather must remain independent.`);
   }
 }
 
@@ -97,12 +97,28 @@ for (const relative of qpfFiles) {
   }
 }
 
+// CP3A providers stay in their module; the host only consumes its public runtime/UI.
+const synopticFiles = await listFiles('src/synoptic', ['.ts', '.tsx']);
+if (synopticFiles.length < 6) fail('CP3A module is incomplete.');
+for (const relative of synopticFiles) {
+  const { specs, hasDynamicNonliteral } = importSpecifiers(await read(relative), relative);
+  if (hasDynamicNonliteral) fail(`${relative} uses a non-literal dynamic import/require.`);
+  for (const spec of specs) {
+    if (!spec.startsWith('.')) {
+      if (!['react','maplibre-gl','geojson','@azohra/meteo.grib','@azohra/meteo.j2k','fast-png','h5wasm'].includes(spec) && !spec.startsWith('react/')) fail(`${relative} imports unexpected module ${spec}.`);
+      continue;
+    }
+    const resolved = normalizeResolvedImport(relative, spec);
+    if (resolved && !isWithin(resolved,'src/synoptic') && resolved !== 'src/broadcast/index.ts' && !isWithin(resolved,'src/broadcast') && !resolved.startsWith('src/current-weather/public-imagery')) fail(`${relative} imports outside its module boundary via ${spec}.`);
+  }
+}
+
 const originalApp = await read('src/app/App.tsx');
 {
   const { specs } = importSpecifiers(originalApp, 'src/app/App.tsx');
   for (const spec of specs) {
     const resolved = normalizeResolvedImport('src/app/App.tsx', spec);
-    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf'))) fail(`src/app/App.tsx imports standalone workstation code via ${spec}; the original working App must remain independent.`);
+    if (resolved && (isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf') || isWithin(resolved, 'src/synoptic'))) fail(`src/app/App.tsx imports standalone workstation code via ${spec}; the original working App must remain independent.`);
   }
 }
 
@@ -115,12 +131,12 @@ for (const relative of hostFiles) {
   if (hasDynamicNonliteral) fail(`${relative} uses a non-literal dynamic import/require.`);
   for (const spec of specs) {
     if (!spec.startsWith('.')) {
-      if (!['react', '@tauri-apps/api/core'].includes(spec) && !spec.startsWith('react/')) fail(`${relative} imports unexpected external module ${spec}.`);
+      if (!['react', '@tauri-apps/api/core', 'maplibre-gl'].includes(spec) && !spec.startsWith('react/')) fail(`${relative} imports unexpected external module ${spec}.`);
       continue;
     }
     const resolved = normalizeResolvedImport(relative, spec);
     if (!resolved) continue;
-    const allowed = isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/map') || isWithin(resolved, 'src/broadcast-graphics') || isWithin(resolved, 'src/current-weather') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf');
+    const allowed = isWithin(resolved, 'src/broadcast') || isWithin(resolved, 'src/broadcast-host') || isWithin(resolved, 'src/map') || isWithin(resolved, 'src/broadcast-graphics') || isWithin(resolved, 'src/current-weather') || isWithin(resolved, 'src/forecast-graphics') || isWithin(resolved, 'src/qpf') || isWithin(resolved, 'src/synoptic');
     if (!allowed) fail(`${relative} imports outside the allowed host boundary via ${spec}.`);
   }
 }

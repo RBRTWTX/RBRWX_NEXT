@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' data: ipc: http://ipc.localhost https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov https://basemap.nationalmap.gov https://api.weather.gov https://nowcoast.noaa.gov https://opengeo.ncep.noaa.gov https://mapservices.weather.noaa.gov; img-src 'self' asset: http://asset.localhost data: blob: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov https://basemap.nationalmap.gov; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; worker-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval';"
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' data: ipc: http://ipc.localhost https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov https://basemap.nationalmap.gov https://api.weather.gov https://nowcoast.noaa.gov https://opengeo.ncep.noaa.gov https://mapservices.weather.noaa.gov https://noaa-rtma-pds.s3.amazonaws.com https://noaa-urma-pds.s3.amazonaws.com https://noaa-mrms-pds.s3.amazonaws.com https://noaa-goes19.s3.amazonaws.com https://tgftp.nws.noaa.gov; img-src 'self' asset: http://asset.localhost data: blob: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov https://basemap.nationalmap.gov; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://tiles.openfreemap.org https://assets.openfreemap.com https://tigerweb.geo.census.gov; worker-src 'self' blob:; script-src 'self' 'wasm-unsafe-eval';"
     }
   },
   "bundle": {
