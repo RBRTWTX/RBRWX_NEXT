@@ -1,3 +1,7 @@
+import {OnAirMenu,useOnAirCommands,BroadcastToolButtons} from './OnAirMenu';
+import {OnAirProvider,LiveOnAirDrawing,OnAirCapture,useOnAirTools,type ToolsSnapshot} from '../synoptic/OnAirTools';
+import {EwxControls,LiveEwxScroll,EwxScroll,useEwxAlerts,type EwxState} from '../current-weather/EwxAlerts';
+import {useGraphics} from '../broadcast-graphics/Graphics';
 import { SynopticHost, SynopticOverlay, SynopticControls, SynopticPlayback, SynopticShell, useSynoptic } from '../synoptic/Scene';
 import { SynopticRuntime } from '../synoptic/runtime';
 import { emptyPack, type PackSnapshot } from '../synoptic/model';
@@ -54,7 +58,7 @@ const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
 type CameraState = { zoom: number; lng: number; lat: number };
 type ContextTab = 'properties' | 'palettes' | 'tools';
 type ContentTab = 'scenes' | 'data' | 'lineup';
-type OperatorAction = 'previous' | 'play-pause' | 'next' | 'loop' | 'refresh' | 'hide-menu';
+type OperatorAction = string;
 
 interface CaptureWeatherState {
   product: Product;
@@ -81,6 +85,8 @@ interface CapturePresentationState {
   qpf: QpfSnapshot;
   synoptic: PackSnapshot;
   hiddenMenuAvailable: boolean;
+  ewx?: EwxState;
+  tools?:ToolsSnapshot;
 }
 
 const healthLabel: Record<MapHealth, string> = {
@@ -158,10 +164,12 @@ function CanvasHiddenMenu({
   const qpf = useQpf();
   const synoptic = useSynoptic();
   const [open, setOpen] = useState(false);
+  const [menuTop,setMenuTop]=useState(120);
+  useEffect(()=>{const update=()=>{const stage=document.querySelector('.operator-canvas-stage,.capture-canvas-stage');if(!stage)return;const bounds=stage.getBoundingClientRect(),title=stage.querySelector('.synoptic-title-frame,.wxg-title');setMenuTop(title?Math.min(bounds.height*.45,Math.max(8,title.getBoundingClientRect().bottom-bounds.top+8)):8);};update();const timer=setInterval(update,200);return()=>clearInterval(timer);},[]);
   if (!available) return null;
   const playing = broadcast.state.transport === 'playing';
 
-  return <div className="canvas-hidden-menu">
+  return <div className="canvas-hidden-menu onair-wide" style={{top:menuTop}}>
     <button
       className="canvas-hidden-menu__trigger"
       type="button"
@@ -169,7 +177,8 @@ function CanvasHiddenMenu({
       aria-expanded={open}
       onClick={() => setOpen(value => !value)}
     >RBRTW</button>
-    {open && <div className="canvas-hidden-menu__panel" role="menu">
+    {open && <div className="canvas-hidden-menu__panel" role="group">
+      <OnAirMenu onDrawStart={()=>setOpen(false)}/>
       {synoptic.active ? <SynopticPlayback /> : <>
       <WeatherPlayback />
       <div className="canvas-hidden-menu__transport">
@@ -284,6 +293,9 @@ function ContextDock({
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
   const graphics = useGraphicsSnapshot();
+  const ewx = useEwxAlerts();
+  const tools=useOnAirTools();
+  const onAirCommand=useOnAirCommands();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
@@ -337,7 +349,7 @@ function ContextDock({
         ><span className="layer-toggle__lamp" /><span>SHOW LOOP</span><b>{broadcast.state.loop ? 'ON' : 'OFF'}</b></button>
       </>}
 
-      {tab === 'palettes' && (synoptic.active ? <SynopticControls /> : <GraphicsControls />)}
+      {tab === 'palettes' && <>{synoptic.active ? <SynopticControls /> : <GraphicsControls />}<EwxControls /></>}
 
       {tab === 'tools' && <>
         {forecast.active ? <ForecastGraphicTools /> : <>
@@ -411,6 +423,9 @@ function OperatorWorkspace({
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
   const graphics = useGraphicsSnapshot();
+  const ewx = useEwxAlerts();
+  const tools=useOnAirTools();
+  const onAirCommand=useOnAirCommands();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
@@ -452,8 +467,8 @@ function OperatorWorkspace({
     forecastGraphics: forecast.snapshot,
     qpf: qpf.snapshot,
     synoptic: synoptic.snapshot,
-    hiddenMenuAvailable,
-  }), [basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, forecast.snapshot, graphics, hiddenMenuAvailable, qpf.snapshot, synoptic.snapshot, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
+    hiddenMenuAvailable, ewx:ewx.state,tools:tools.snapshot,
+  }), [tools.snapshot,ewx.state, basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, forecast.snapshot, graphics, hiddenMenuAvailable, qpf.snapshot, synoptic.snapshot, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
 
   useEffect(() => {
     if (publishTimer.current) clearTimeout(publishTimer.current);
@@ -467,6 +482,7 @@ function OperatorWorkspace({
     let cancelled = false;
     let busy = false;
     const apply = (action: OperatorAction) => {
+      if(onAirCommand(action))return;
       if (synoptic.active && action === 'previous') synoptic.step(-1);
       else if (synoptic.active && action === 'next') synoptic.step(1);
       else if (synoptic.active && action === 'play-pause') synoptic.play();
@@ -493,7 +509,7 @@ function OperatorWorkspace({
     void poll();
     const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather.controller]);
+  }, [onAirCommand,broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather.controller]);
 
   return <main className="app-shell rbrwx-broadcast-workspace">
     <header className="topbar operator-topbar">
@@ -532,6 +548,7 @@ function OperatorWorkspace({
       </div>
       {forecast.active && <ForecastGraphicEditorStage />}
       {synoptic.active ? <SynopticOverlay /> : <GraphicsOverlay />}
+      <LiveEwxScroll /><LiveOnAirDrawing />
       <CanvasHiddenMenu available={hiddenMenuAvailable} onAvailableChange={setHiddenMenuAvailable} onPopout={openPopout} />
     </section>
 
@@ -575,7 +592,7 @@ function RbrwxOperatorWorkspaceRoot() {
     <CurrentWeatherHost>
       <GraphicsHost>
         <ForecastGraphicsHost>
-          <QpfHost><SynopticHost>
+          <QpfHost><SynopticHost><OnAirProvider>
           <OperatorWorkspace
           basemapMode={basemapMode}
           setBasemapMode={setBasemapMode}
@@ -590,7 +607,7 @@ function RbrwxOperatorWorkspaceRoot() {
           hiddenMenuAvailable={hiddenMenuAvailable}
           setHiddenMenuAvailable={setHiddenMenuAvailable}
           />
-          </SynopticHost></QpfHost>
+          </OnAirProvider></SynopticHost></QpfHost>
         </ForecastGraphicsHost>
       </GraphicsHost>
     </CurrentWeatherHost>
@@ -602,13 +619,16 @@ export function RbrwxBroadcastWorkspace() {
   return captureMode ? <RbrwxCanvasCaptureWorkspace /> : <RbrwxOperatorWorkspaceRoot />;
 }
 
-function CaptureHiddenMenu({ available }: { available: boolean }) {
+function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean }) {
   const [open, setOpen] = useState(false);
+  const [menuTop,setMenuTop]=useState(120);
+  useEffect(()=>{const update=()=>{const stage=document.querySelector('.operator-canvas-stage,.capture-canvas-stage');if(!stage)return;const bounds=stage.getBoundingClientRect(),title=stage.querySelector('.synoptic-title-frame,.wxg-title');setMenuTop(title?Math.min(bounds.height*.45,Math.max(8,title.getBoundingClientRect().bottom-bounds.top+8)):8);};update();const timer=setInterval(update,200);return()=>clearInterval(timer);},[]);
   if (!available) return null;
   const action = (value: OperatorAction) => void invoke('request_operator_action', { action: value }).catch(() => undefined);
-  return <div className="canvas-hidden-menu canvas-hidden-menu--capture">
+  return <div className="canvas-hidden-menu canvas-hidden-menu--capture onair-wide" style={{top:menuTop}}>
     <button className="canvas-hidden-menu__trigger" type="button" aria-label="Open RBRTW hidden canvas menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>RBRTW</button>
-    {open && <div className="canvas-hidden-menu__panel" role="menu">
+    {open && <div className="canvas-hidden-menu__panel" role="group">
+      <BroadcastToolButtons command={action} ewx={ewx} draw={false}/>
       <div className="canvas-hidden-menu__transport">
         <button type="button" onClick={() => action('previous')}>|◀</button>
         <button type="button" onClick={() => action('play-pause')}>▶/Ⅱ</button>
@@ -682,7 +702,9 @@ function CaptureWeatherCanvas({ state }: { state: CapturePresentationState }) {
       onHealthChange={() => undefined}
     />}
     {state.synoptic?.productId ? <SynopticShell snapshot={state.synoptic} map={synopticMap} /> : <GraphicsSnapshotOverlay snapshot={state.graphics} extraKeys={palettes.keys} />}
-    <CaptureHiddenMenu available={state.hiddenMenuAvailable} />
+    {state.tools&&<OnAirCapture map={synopticMap} snapshot={state.tools}/>}
+    {state.ewx&&<EwxScroll state={state.ewx}/>}
+    <CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled} />
   </section>;
 }
 

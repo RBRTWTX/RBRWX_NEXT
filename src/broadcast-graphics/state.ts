@@ -1,8 +1,9 @@
+import type {Box} from './ResizeBox';
 import type { BarStyles } from './barStyles';
 export type Kind = 'title' | 'lower' | 'ticker';
-export interface Scene { id: string; title: string; weatherKeyId?: string }
+export interface Scene {legendUrl?:string;legendTitle?:string; id: string; title: string; weatherKeyId?: string }
 export interface Layout { x: number; y: number; scale: number }
-export interface Copy { barStyles?: BarStyles; keySelection?: string; manual: boolean; title: string; lower: string; ticker: string }
+export interface Copy { barStyles?: BarStyles; barBoxes?: Partial<Record<Kind,Box>>; keySelection?: string; manual: boolean; title: string; lower: string; ticker: string }
 export const sizes = { title: [1872, 108], lower: [1766, 120], ticker: [1766, 56] } as const;
 export function freshCopy(): Copy { return { manual: false, title: '', lower: '', ticker: '' }; }
 export function freshLayouts(): Record<Kind, Layout> {

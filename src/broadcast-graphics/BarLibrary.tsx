@@ -10,7 +10,7 @@ export function BarLibrary({ value, onChange, targets, disabled = false }: {
   const target = targets.includes(selection) ? selection : targets[0];
   const selected = value?.[target];
   const resolved = resolveBarAppearance(selected);
-  const edit = (patch: Partial<BarAppearance>) => onChange({ ...value, [target]: { ...resolved, ...patch } });
+  const edit = (patch: Partial<BarAppearance>) => onChange({ ...value, [target]: { ...resolved, textSizing:selected?.textSizing, ...patch } });
   return <details className="wx-bar-library">
     <summary>BAR LIBRARY</summary>
     <div className="wx-bar-library-body">
@@ -25,6 +25,7 @@ export function BarLibrary({ value, onChange, targets, disabled = false }: {
         </button>)}
       </div>
       <p>{selected ? `${labels[target]} · ${BAR_DESIGNS.find(item => item.id === resolved.design)!.name}` : 'Existing scene appearance · choose a design to customize.'}</p>
+      <label><input type="checkbox" disabled={disabled||!selected} checked={!!selected?.textSizing} onChange={e=>edit({textSizing:e.target.checked})}/>Size text only when dragging edges</label>
       <fieldset disabled={disabled || !selected}>
         <legend>Customize selected bar</legend>
         <div className="wx-bar-colors">{([['top', 'Top color'], ['bottom', 'Bottom color'], ['accent', 'Accent color'], ['text', 'Text color']] as const).map(([key, label]) =>

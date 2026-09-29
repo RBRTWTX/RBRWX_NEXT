@@ -128,7 +128,7 @@ try {
   const radarSource = fs.readFileSync(new URL('src/current-weather/public-imagery.ts', root), 'utf8');
   const controllerSource = fs.readFileSync(new URL('src/current-weather/controller.ts', root), 'utf8');
   assert.match(radarSource, /private activeIds: string\[\] = \['KEWX'\]/, 'KEWX must be the default primary radar');
-  assert.match(radarSource, /radarReflectivityLayer\(capabilities, id\)/, 'Runtime must discover the site-qualified SR_BREF WMS layer from capabilities');
+  assert.match(radarSource, /radarProductLayer\(capabilities, id,this.options.radarField\)/, 'Runtime must discover the site-qualified SR_BREF WMS layer from capabilities');
   assert.doesNotMatch(radarSource, /LAYERS:\s*'SR_BREF'/, 'Runtime must not assume the product label SR_BREF is the literal WMS layer name');
   assert.match(radarSource, /slice\(0, 3\)/, 'Radar selection must enforce the three-site maximum');
   assert.match(radarSource, /current\.end \?\? next\.start/, 'Palette gradient interpolation must use the current breakpoint second RGB');
@@ -138,7 +138,7 @@ try {
   assert.match(radarSource, /this\.map\.on\('sourcedata', loaded\)/, 'New radar images must wait for MapLibre source load before replacing the previous frame');
   assert.match(radarSource, /queryRenderedFeatures\(event\.point, \{ layers: \[this\.markerLabelLayer, this\.markerLayer\] \}\)/, 'Tower and label clicks must use one click path to prevent double toggles');
   assert.match(radarSource, /if \(!id\) \{ await this\.applyRadarSelection\(\[\]\); return; \}/, 'No-primary selection must actually clear site radars');
-  assert.match(controllerSource, /const reload = scene !== this\.scene \|\| product !== this\.product \|\| apiKey !== this\.apiKey;/, 'Changing MRMS backup must not rebuild the site-radar manager and lose selected sites');
+  assert.match(controllerSource, /const reload = scene !== this\.scene \|\| product !== this\.product \|\| apiKey !== this\.apiKey \|\| options.radarField!==this.options.radarField \|\| options.satelliteFeed!==this.options.satelliteFeed;/, 'Changing MRMS backup must not rebuild the site-radar manager and lose selected sites');
   assert.doesNotMatch(controllerSource, /const reload[^;]*mrmsEnabled/, 'MRMS toggle must not be part of the full-manager reload condition');
   assert.match(controllerSource, /setMRMSEnabled\?\./, 'Controller must update MRMS backup in place');
   assert.match(controllerSource, /manager\.destroy\(\); this\.manager = null;/, 'A manager that fails initialization must be destroyed instead of leaking listeners or timers');

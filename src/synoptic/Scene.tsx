@@ -1,3 +1,4 @@
+import {ResizeBox} from '../broadcast-graphics/ResizeBox';
 import {BarLibrary} from '../broadcast-graphics/BarLibrary';
 import {barAttributes,barPresentation} from '../broadcast-graphics/barStyles';
 import {createContext,useContext,useEffect,useLayoutEffect,useMemo,useState,type ReactNode} from 'react';
@@ -7,16 +8,17 @@ import {defaults,emptyPack,PRODUCTS,productFor,type PackSnapshot,type SceneSetti
 import {SynopticRuntime} from './runtime';
 import {TitleBar,EditableText,titleLayout} from './Chrome';
 import './synoptic.css';
-interface Runtime {active:boolean;snapshot:PackSnapshot;controller:SynopticRuntime;map:WeatherMap|null;connect:(m:WeatherMap)=>()=>void;edit:(patch:Partial<SceneSettings>)=>void;playing:boolean;play:()=>void;step:(d:number)=>void;selected:string|null;select:(id:string|null)=>void;drawing:WeatherObject['kind']|null;draw:(kind:WeatherObject['kind']|null)=>void;}
+interface Runtime {setProduct:(id:string|null)=>void;active:boolean;snapshot:PackSnapshot;controller:SynopticRuntime;map:WeatherMap|null;connect:(m:WeatherMap)=>()=>void;edit:(patch:Partial<SceneSettings>)=>void;playing:boolean;play:()=>void;step:(d:number)=>void;selected:string|null;select:(id:string|null)=>void;drawing:WeatherObject['kind']|null;draw:(kind:WeatherObject['kind']|null)=>void;}
 const Context=createContext<Runtime|null>(null);
 export const useSynoptic=()=>{const c=useContext(Context);if(!c)throw Error('Synoptic provider missing');return c;};
 export function SynopticHost({children}:{children:ReactNode}){
- const {programScene,state}=useBroadcast(),product=productFor(programScene?.contentKey),scene=state.programItemId??programScene?.id??'startup';
+ const {programScene,state}=useBroadcast(),baseProduct=productFor(programScene?.contentKey),scene=state.programItemId??programScene?.id??'startup';
  const [snapshot,setSnapshot]=useState(emptyPack),[map,setMap]=useState<WeatherMap|null>(null),[playing,setPlaying]=useState(false),[selected,select]=useState<string|null>(null),[drawing,draw]=useState<WeatherObject['kind']|null>(null);
  const [settings,setSettings]=useState<Record<string,SceneSettings>>(()=>{try{return JSON.parse(localStorage.getItem('rbrwx-synoptic-scenes-v1')??'{}');}catch{return {};}});
+ const product=settings[scene]?.productOverride===null?undefined:PRODUCTS.find(p=>p.id===(settings[scene]?.productOverride??baseProduct?.id));
  const controller=useMemo(()=>new SynopticRuntime(setSnapshot),[]),current={...defaults(),...settings[scene],background:settings[scene]?.background??(product?.id.endsWith('-radar')?'radar':product?.id.endsWith('-satellite')?'satellite':'none')} as SceneSettings;
  const edit=(patch:Partial<SceneSettings>)=>setSettings(old=>({...old,[scene]:{...current,...old[scene],...patch}}));
- useLayoutEffect(()=>{controller.select(product,current);},[controller,product,settings,scene]);
+ useLayoutEffect(()=>{controller.select(product??null,current);},[controller,product,settings,scene]);
  useEffect(()=>{if(!map||!product)return;const id=product.id;
   const view=id==='tropical-pacific'?{center:[-120,22] as [number,number],zoom:3.5}:id==='tropical-gulf'?{center:[-85,23] as [number,number],zoom:4.5}:product.family==='tropical'?{center:[-55,28] as [number,number],zoom:3}:id!=='surface-regional'&&id!=='warnings'?{center:[-98,38] as [number,number],zoom:3.6}:null;
   if(view)map.easeTo({...view,duration:0});
@@ -27,7 +29,7 @@ export function SynopticHost({children}:{children:ReactNode}){
  useEffect(()=>{if(!product)return;const timer=setInterval(()=>void controller.refresh(),product.family==='lightning'?60000:120000);return()=>clearInterval(timer);},[product,controller]);
  const step=(d:number)=>{setPlaying(false);const n=snapshot.frames.length;if(!n)return;const i=snapshot.index+d;if(i>=0&&i<n)void controller.loadFrame(i);else if(current.loop)void controller.loadFrame((i+n)%n);};
  useEffect(()=>{if(!playing)return;let busy=false;const timer=setInterval(()=>{if(busy)return;const s=controller.snapshot,n=s.frames.length;let i=s.index+1;if(i>=n){if(!s.settings.loop){setPlaying(false);return;}i=0;}busy=true;void controller.loadFrame(i).finally(()=>{busy=false;});},900);return()=>clearInterval(timer);},[playing,controller]);
- return <Context.Provider value={{active:!!product,snapshot,controller,map,connect:m=>{setMap(m);const release=controller.connect(m);return()=>{release();setMap(null);};},edit,playing,play:()=>setPlaying(p=>!p),step,selected,select,drawing,draw}}>{children}</Context.Provider>;
+ return <Context.Provider value={{setProduct:id=>edit({productOverride:id}),active:!!product,snapshot,controller,map,connect:m=>{setMap(m);const release=controller.connect(m);return()=>{release();setMap(null);};},edit,playing,play:()=>setPlaying(p=>!p),step,selected,select,drawing,draw}}>{children}</Context.Provider>;
 }
 export function SynopticPlayback(){const c=useSynoptic();if(!c.active)return null;return <div className="synoptic-playback"><button onClick={()=>c.step(-1)} aria-label="Previous weather frame">|◀</button><button disabled={c.snapshot.frames.length<2} onClick={c.play}>{c.playing?'Ⅱ':'▶'}</button><button onClick={()=>c.step(1)} aria-label="Next weather frame">▶|</button><button aria-pressed={c.snapshot.settings.loop} onClick={()=>c.edit({loop:!c.snapshot.settings.loop})}>LOOP</button><button onClick={()=>void c.controller.refresh()}>REFRESH</button><span>{c.snapshot.frames.length?`${c.snapshot.index+1} / ${c.snapshot.frames.length}`:'LATEST ISSUANCE'}</span></div>;}
 const objectKinds:WeatherObject['kind'][]=['cold','warm','stationary','occluded','trough','dryline','H','L','text','arrow','hurricane','tropical-storm'];
@@ -37,9 +39,10 @@ export function SynopticControls(){const c=useSynoptic();if(!c.active)return nul
  <label>Subtitle<input value={s.textOverrides?.subtitle??s.subtitle} onChange={e=>c.edit({textOverrides:{...s.textOverrides,subtitle:e.target.value}})}/></label>
  <label>Time text override<input value={s.textOverrides?.time??''} placeholder="Automatic valid time" onChange={e=>c.edit({textOverrides:{...s.textOverrides,time:e.target.value}})}/></label>
  <button onClick={()=>{const {time,...rest}=s.textOverrides??{};c.edit({textOverrides:rest});}}>Use automatic time</button>
- <button onClick={()=>c.edit({titleLayout:titleLayout()})}>Reset title size / position</button>
+ <button onClick={()=>c.edit({titleLayout:titleLayout(),barBoxes:{...s.barBoxes,title:undefined}})}>Reset title size / position</button>
  <button onClick={()=>c.edit({textOverrides:{},title:'',subtitle:'',lower:''})}>Reset bar text</button>
- <small>Double-click bar text to edit. Drag any title corner to scale; drag the bar to move.</small>
+ <button onClick={()=>c.edit({titleVisible:true})}>Add / show title bar</button><button onClick={()=>{const {title,time,...rest}=s.textOverrides??{};c.edit({titleVisible:true,title:'',textOverrides:rest});}}>Refresh title / valid time</button>
+ <small>Double-click bar text to edit. Drag corners to scale, sides to change width, or the body to move. Alt-drag an edge to size text only.</small>
  <label>Lower third<input value={s.textOverrides?.lower??s.lower} onChange={e=>c.edit({textOverrides:{...s.textOverrides,lower:e.target.value}})}/></label>
  {PRODUCTS.find(p=>p.id===c.snapshot.productId)?.family==='tropical'&&<label>Storm<select value={s.storm} onChange={e=>c.edit({storm:e.target.value})}><option value="">All active storms</option>{[...new Set(c.snapshot.payload?.data?.features.map(f=>String(f.properties?._storm??'')).filter(Boolean))].map(name=><option key={name}>{name}</option>)}</select></label>}<label>Operator forecast valid time<input type="datetime-local" value={s.forecastTime} onChange={e=>c.edit({forecastTime:e.target.value})}/></label>
  <label>Weather background<select value={s.background} onChange={e=>c.edit({background:e.target.value as SceneSettings['background']})}><option value="none">None</option><option value="radar">MRMS mosaic</option><option value="satellite">GOES infrared</option></select><button onClick={()=>void c.controller.refresh()}>Apply background</button></label>
@@ -83,9 +86,9 @@ export function SynopticShell({snapshot,map,editable=false}:{snapshot:PackSnapsh
  return <div className={`synoptic-shell synoptic-shell--${product.family}`}>
  {s.titleVisible&&<TitleBar appearance={barPresentation(s.barStyles?.title)} settings={s} title={s.title||product.title} time={`${payload?.timeLabel??'VALID'} · ${valid}`} legend={payload?.legend} edit={edit}/>}
  <Objects snapshot={{...snapshot,payload}} map={map} editable={editable}/>
- {(!payload||expired)&&<div className="synoptic-unavailable" {...barAttributes(s.barStyles?.status)}><EditableText label="Status bar text" value={s.textOverrides?.status??(expired?'UNAVAILABLE · PRODUCT EXPIRED':snapshot.status)} edit={edit?value=>edit({textOverrides:{...s.textOverrides,status:value}}):undefined}/></div>}
+ {(!payload||expired)&&<ResizeBox label="status" box={s.barBoxes?.status??{x:6,y:44,width:88}} textOnly={s.barStyles?.status?.textSizing} edit={edit?box=>edit({barBoxes:{...s.barBoxes,status:box}}):undefined}><div className="synoptic-unavailable" {...barAttributes(s.barStyles?.status)}><EditableText label="Status bar text" value={s.textOverrides?.status??(expired?'UNAVAILABLE · PRODUCT EXPIRED':snapshot.status)} edit={edit?value=>edit({textOverrides:{...s.textOverrides,status:value}}):undefined}/></div></ResizeBox>}
  {product.family==='tropical'&&storm&&<aside className="synoptic-storm"><strong>{field('storm:name',String(storm.STORMNAME??'TROPICAL SYSTEM'),'Storm name')}</strong><dl>{[['Wind',`${storm.MAXWIND??'—'} kt`],['Gusts',`${storm.GUST??'—'} kt`],['Pressure',`${storm.MSLP??'—'} hPa`],['Motion',`${storm.TCDIR??'—'}° at ${storm.TCSPD??'—'} kt`],['Location',`${storm.LAT??'—'}°, ${storm.LON??'—'}°`]].map(([k,v])=><div key={k}><dt>{field(`storm:label:${k}`,k,`${k} label`)}</dt><dd>{field(`storm:value:${k}`,v,`${k} value`)}</dd></div>)}</dl><small>{field('storm:advisory',`Advisory ${storm.ADVISNUM??'—'} · ${storm.ADVDATE??''}`,'Storm advisory text')}</small></aside>}
- {(s.textOverrides?.lower??s.lower)&&<div className="synoptic-lower" {...barAttributes(s.barStyles?.lower)}><EditableText label="Lower third text" value={s.textOverrides?.lower??s.lower} edit={edit?value=>edit({textOverrides:{...s.textOverrides,lower:value}}):undefined}/></div>}
+ {(s.textOverrides?.lower??s.lower)&&<ResizeBox label="lower third" box={s.barBoxes?.lower??{x:3,y:78,width:80}} textOnly={s.barStyles?.lower?.textSizing} edit={edit?box=>edit({barBoxes:{...s.barBoxes,lower:box}}):undefined}><div className="synoptic-lower" {...barAttributes(s.barStyles?.lower)}><EditableText label="Lower third text" value={s.textOverrides?.lower??s.lower} edit={edit?value=>edit({textOverrides:{...s.textOverrides,lower:value}}):undefined}/></div></ResizeBox>}
  {s.detailsVisible&&details&&<aside className="synoptic-details"><button onClick={()=>setDetails(null)}>×</button>{Object.entries(details).filter(([k])=>!k.startsWith('_')).map(([k,v])=><div key={k}><b>{field(`detail:label:${k}`,k.replaceAll('_',' '),`${k} label`)}</b><span>{field(`detail:value:${k}`,String(v??'—'),`${k} text`)}</span></div>)}</aside>}
  </div>;
 }

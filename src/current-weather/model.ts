@@ -29,6 +29,8 @@ export interface RadarSite {
 }
 
 export interface Options {
+  radarField?: 'reflectivity'|'velocity'|'hydro';
+  satelliteFeed?: 'longwave'|'shortwave'|'visible'|'water_vapor'|'snow_ice';
   units: Units;
   opacity: number;
   loop: boolean;

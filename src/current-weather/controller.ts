@@ -46,7 +46,7 @@ interface WeatherManager {
   destroy(): void;
 }
 
-interface ManagerOptions extends PublicImageryOptions { mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
+interface ManagerOptions extends PublicImageryOptions {initialRadarIds?:string[]; mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
 export type ManagerFactory = (map: WeatherMap, options: ManagerOptions) => Promise<WeatherManager>;
 const loadManager: ManagerFactory = async (map, options) => options.product === 'radar'
   ? new RadarImagery(map, { ...options, product: 'radar', mrmsEnabled: options.mrmsEnabled, sweepsEnabled: options.sweepsEnabled, onNotice: options.onNotice })
@@ -229,7 +229,7 @@ export class CurrentWeatherController {
   select(scene: string, product: Product, options: Options, apiKey: string) {
     const previousMrmsEnabled = this.options.mrmsEnabled;
     const previousSweepsEnabled = this.options.sweepsEnabled;
-    const reload = scene !== this.scene || product !== this.product || apiKey !== this.apiKey;
+    const reload = scene !== this.scene || product !== this.product || apiKey !== this.apiKey || options.radarField!==this.options.radarField || options.satelliteFeed!==this.options.satelliteFeed;
     this.scene = scene; this.product = product; this.options = options; this.apiKey = apiKey;
     if (reload) void this.start();
     else {
@@ -259,6 +259,7 @@ export class CurrentWeatherController {
   destroy() { this.clear(); this.map = null; }
 
   private async start() {
+    const initialRadarIds=[...this.snapshot.activeRadarIds];
     this.clear(); const generation = this.generation, map = this.map;
     this.emit(initialSnapshot()); if (this.product === 'map') return;
     if (!map) { this.emit({ status: 'loading', message: 'Waiting for geographic map' }); return; }
@@ -287,7 +288,7 @@ export class CurrentWeatherController {
     let manager: WeatherManager | null = null;
     try {
       manager = await this.factory(map, {
-        product: this.product, anchor: this.anchor, opacity: this.options.opacity, mrmsEnabled: this.options.mrmsEnabled, sweepsEnabled: this.options.sweepsEnabled,
+        product: this.product, initialRadarIds,radarField:this.options.radarField,satelliteFeed:this.options.satelliteFeed, anchor: this.anchor, opacity: this.options.opacity, mrmsEnabled: this.options.mrmsEnabled, sweepsEnabled: this.options.sweepsEnabled,
         onError: message => { if (generation === this.generation) { this.networkFailed = true; this.emit({ status: 'unavailable', message }); } },
         onNotice: message => { if (generation === this.generation) this.emit({ message }); },
       });
@@ -319,10 +320,10 @@ export class CurrentWeatherController {
     const time = frameTimes([manager.currentLoadedTimeKey])[0] ?? null;
     if (time !== null) {
       const status = freshness(time, this.product === 'radar' ? 15 : 30, this.networkFailed || Date.now() - this.received > 180000);
-      let label = 'NOAA GOES East/West infrared · Band 14';
+      let label = `NOAA GOES East/West · ${(this.options.satelliteFeed??'longwave').replaceAll('_',' ').toUpperCase()} imagery`;
       if (this.product === 'radar') {
         const id = this.snapshot.primaryRadarId ?? 'KEWX', shortId = id.startsWith('K') ? id.slice(1) : id;
-        label = `${manager.sourceLabel ?? `${shortId} WSR-88D`} · ${manager.sourceLabel?.startsWith('MRMS') ? 'NOAA mosaic palette' : `SR_BREF · ${this.paletteFallback ? 'NWS palette fallback' : 'RadarScope palette'}`}`;
+        label = `${manager.sourceLabel ?? `${shortId} WSR-88D`} · ${manager.sourceLabel?.startsWith('MRMS') ? 'NOAA mosaic palette' : this.options.radarField&&this.options.radarField!=='reflectivity'?`${this.options.radarField==='velocity'?'SR_BVEL':'BDHC'} · NWS service palette`:`SR_BREF · ${this.paletteFallback ? 'NWS palette fallback' : 'RadarScope palette'}`}`;
       }
       this.emit({ time, status, message: `${label} · ${status.toUpperCase()} · ${new Date(time).toLocaleString()}` });
     } else if (this.product === 'radar' && manager.statusDetail) {

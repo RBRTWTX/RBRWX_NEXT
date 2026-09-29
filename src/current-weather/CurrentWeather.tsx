@@ -4,16 +4,17 @@ import { CurrentWeatherController } from './controller';
 import { currentConditionTitles, defaultOptions, initialSnapshot, type CurrentConditionField, type Options, type Product, type Snapshot } from './model';
 import './weather.css';
 
-interface Runtime { product: Product; snapshot: Snapshot; options: Options; edit: (patch: Partial<Options>) => void; controller: CurrentWeatherController }
+interface Runtime { setProduct:(product:Product|null)=>void; product: Product; snapshot: Snapshot; options: Options; edit: (patch: Partial<Options>) => void; controller: CurrentWeatherController }
 const Context = createContext<Runtime | null>(null);
 export function useCurrentWeather() { const value = useContext(Context); if (!value) throw Error('Current weather provider missing'); return value; }
 
-export function CurrentWeatherProvider({ sceneId, product, children }: { sceneId: string; product: Product; children: ReactNode }) {
+export function CurrentWeatherProvider({ sceneId, product:baseProduct, children }: { sceneId: string; product: Product; children: ReactNode }) {
+  const[overrides,setOverrides]=useState<Record<string,Product|null>>({});const product=overrides[sceneId]??baseProduct;
   const [snapshot, setSnapshot] = useState(initialSnapshot), [settings, setSettings] = useState<Record<string, Options>>({});
   const controller = useMemo(() => new CurrentWeatherController(setSnapshot), []), options = settings[sceneId] ?? defaultOptions();
-  useLayoutEffect(() => { controller.select(sceneId, product, options, ''); }, [controller, sceneId, product, options.units, options.opacity, options.loop, options.mrmsEnabled, options.sweepsEnabled, options.currentField]);
+  useLayoutEffect(() => { controller.select(sceneId, product, options, ''); }, [controller, sceneId, product, options.units, options.opacity, options.loop, options.mrmsEnabled, options.sweepsEnabled, options.currentField,options.radarField,options.satelliteFeed]);
   useEffect(() => () => controller.destroy(), [controller]);
-  return <Context.Provider value={{ product, snapshot, options, controller, edit: patch => setSettings(old => ({ ...old, [sceneId]: { ...(old[sceneId] ?? defaultOptions()), ...patch } })) }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ setProduct:product=>setOverrides(old=>({...old,[sceneId]:product})), product, snapshot, options, controller, edit: patch => setSettings(old => ({ ...old, [sceneId]: { ...(old[sceneId] ?? defaultOptions()), ...patch } })) }}>{children}</Context.Provider>;
 }
 
 export function WeatherMapConnection({ children }: { children: (connect: (map: WeatherMap) => () => void) => ReactNode }) {
@@ -57,7 +58,7 @@ export function WeatherControls() {
       </div>
       <small className="wx-radar-hint">Click radar towers on the map to toggle up to 3 sweeps.</small>
       <label><input type="checkbox" checked={options.sweepsEnabled} onChange={e => edit({ sweepsEnabled: e.target.checked })} /> Radar sweep animation</label>
-      <label><input type="checkbox" checked={options.mrmsEnabled} onChange={e => edit({ mrmsEnabled: e.target.checked })} /> MRMS backup mosaic</label>
+      <label><input type="checkbox" disabled={!!options.radarField&&options.radarField!=='reflectivity'} checked={options.mrmsEnabled} onChange={e => edit({ mrmsEnabled: e.target.checked })} /> MRMS backup mosaic</label>
       <label>Radar opacity<input aria-label="Radar opacity" type="range" min="0" max="100" value={Math.round(options.opacity * 100)} onChange={e => edit({ opacity: Number(e.target.value) / 100 })} /></label>
       <button type="button" onClick={() => void controller.refresh()}>Refresh radar</button>
     </>}

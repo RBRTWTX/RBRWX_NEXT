@@ -178,8 +178,14 @@ fn request_operator_action(
     bridge: State<'_, CanvasBridgeState>,
     action: String,
 ) -> Result<(), String> {
-    const ALLOWED: [&str; 6] = ["previous", "play-pause", "next", "loop", "refresh", "hide-menu"];
-    if !ALLOWED.contains(&action.as_str()) {
+    const ALLOWED: &[&str] = &["previous", "play-pause", "next", "loop", "refresh", "hide-menu",
+        "bar-add", "bar-refresh", "ewx-toggle", "ewx-refresh", "sweeps", "pen", "track", "pen-undo", "pen-clear", "track-clear", "layers-off", "overlays-refresh",
+        "overlay:warnings", "overlay:lightning", "overlay:cone", "radar:reflectivity", "radar:velocity", "radar:hydro",
+        "satellite:longwave", "satellite:shortwave", "satellite:visible", "satellite:water_vapor", "satellite:snow_ice",
+        "mrms:mrms-reflectivity", "mrms:mrms-composite", "mrms:mrms-qpe1", "mrms:mrms-qpe24", "mrms:mrms-rate", "mrms:mrms-type", "mrms:mrms-tops", "mrms:mrms-hail", "mrms:mrms-shear", "mrms:mrms-flood"];
+    let speed = action.strip_prefix("speed:").and_then(|value| value.parse::<f64>().ok()).is_some_and(|value| value.is_finite() && (1.0..=150.0).contains(&value));
+    let color = action.strip_prefix("color:#").is_some_and(|value| value.len() == 6 && value.bytes().all(|b| b.is_ascii_hexdigit()));
+    if action.len() > 80 || !(ALLOWED.contains(&action.as_str()) || speed || color) {
         return Err(format!("unsupported operator action: {action}"));
     }
     let mut inner = bridge.0.lock()

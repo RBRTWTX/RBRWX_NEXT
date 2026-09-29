@@ -1,3 +1,4 @@
+import {EwxProvider} from '../current-weather/EwxAlerts';
 import { useRef, type ReactNode } from 'react';
 import { useBroadcast } from '../broadcast';
 import { CurrentWeatherProvider } from '../current-weather/CurrentWeather';
@@ -16,7 +17,7 @@ export function CurrentWeatherHost({ children }: { children: ReactNode }) {
   const graphic = Boolean(programScene?.contentKey.startsWith('graphic.'));
   const held = useRef<{ sceneId: string; product: Product }>({ sceneId: 'startup', product: 'map' });
   if (!graphic) held.current = { sceneId: state.programItemId ?? 'startup', product: productForContent(programScene?.contentKey) };
-  return <CurrentWeatherProvider sceneId={held.current.sceneId} product={held.current.product}>{children}</CurrentWeatherProvider>;
+  return <CurrentWeatherProvider sceneId={held.current.sceneId} product={held.current.product}><EwxProvider>{children}</EwxProvider></CurrentWeatherProvider>;
 }
 
 export function CurrentProductSelector() {

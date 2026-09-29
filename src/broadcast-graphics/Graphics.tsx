@@ -1,3 +1,4 @@
+import {ResizeBox} from './ResizeBox';
 import { BarLibrary } from './BarLibrary';
 import { barPresentation, type BarStyles } from './barStyles';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
@@ -17,17 +18,18 @@ export interface GraphicsSnapshot {
   layouts: Record<Kind, Layout>;
 }
 const Context = createContext<Model | null>(null);
-function useGraphics() { const value = useContext(Context); if (!value) throw new Error('Graphics provider missing'); return value; }
+export function useGraphics() { const value = useContext(Context); if (!value) throw new Error('Graphics provider missing'); return value; }
 export function useGraphicsSnapshot(): GraphicsSnapshot {
   const { scene, copy, visible, layouts } = useGraphics();
   return { scene, copy, visible, layouts };
 }
 export function GraphicsProvider({ scene, children, extraKeys = [] }: { scene: Scene | null; children: ReactNode; extraKeys?: readonly WeatherKey[] }) {
-  const [copies, setCopies] = useState<Record<string, Copy>>({});
+  const [copies, setCopies] = useState<Record<string, Copy>>(()=>{try{return JSON.parse(localStorage.getItem('rbrwx-graphic-copy-v2')??'{}')??{};}catch{return {};}});
   const [styles, setStyles] = useState<Record<string, BarStyles>>(() => {
     try { const saved = JSON.parse(localStorage.getItem('rbrwx-graphic-bar-styles-v1') ?? '{}'); return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}; } catch { return {}; }
   });
   useEffect(() => { try { localStorage.setItem('rbrwx-graphic-bar-styles-v1', JSON.stringify(styles)); } catch { /* Keep editing if storage is unavailable. */ } }, [styles]);
+  useEffect(()=>{try{localStorage.setItem('rbrwx-graphic-copy-v2',JSON.stringify(copies));}catch{}},[copies]);
   const [visible, setVisible] = useState({ title: false, lower: false, ticker: false });
   const [layouts, setLayouts] = useState(freshLayouts);
   const id = scene?.id ?? 'startup';
@@ -54,28 +56,21 @@ function Text({ value, commit, scrolling = false }: { value: string; commit: (te
     onPaste={event => { event.preventDefault(); const text = event.clipboardData.getData('text/plain').replace(/[\r\n]+/g, ' '); const selection = window.getSelection(); if (selection?.rangeCount) { const range = selection.getRangeAt(0); range.deleteContents(); const node = document.createTextNode(text); range.insertNode(node); range.setStartAfter(node); range.collapse(true); selection.removeAllRanges(); selection.addRange(range); } }}
   >{editing ? undefined : scrolling ? <span className="wxg-crawl">{value}</span> : value}</div>;
 }
+function ServiceLegend({url,label}:{url:string;label:string}){const[failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return <div className="wx-service-key"><span>{label}</span>{failed?<b>Key unavailable</b>:<img src={url} alt={label} onError={()=>setFailed(true)}/>}</div>;}
 function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
   const { scene, copy, edit, layouts, position, extraKeys } = useGraphics();
   const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId, extraKeys) : undefined;
   const layout = layouts[kind];
   const appearance = barPresentation(copy.barStyles?.[kind]);
-  const gesture = useRef<{ x: number; y: number; start: Layout; resize: boolean; id: number } | null>(null);
-  const [width, height] = sizes[kind];
-  function down(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || (event.target as HTMLElement).isContentEditable) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    gesture.current = { x: event.clientX, y: event.clientY, start: { ...layout }, resize: box.right - event.clientX < 14 && box.bottom - event.clientY < 14, id: event.pointerId };
-    event.stopPropagation(); (event.target as HTMLElement).setPointerCapture(event.pointerId);
-  }
-  return <div className={`wxg-bar wxg-${kind}${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} data-bar-design={appearance.design} style={{ ...appearance.style, left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})` }}
-    onPointerDown={down}
-    onPointerMove={event => { const g = gesture.current; if (!g || g.id !== event.pointerId) return; event.stopPropagation(); position(kind, changeLayout(kind, g.start, (event.clientX - g.x) / viewScale, (event.clientY - g.y) / viewScale, g.resize)); }}
-    onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
-    onPointerCancel={() => { gesture.current = null; }} onLostPointerCapture={() => { gesture.current = null; }}>
+  const [width,height]=sizes[kind];
+  const box=copy.barBoxes?.[kind]??{x:layout.x/19.2,y:layout.y/10.8,width:width*layout.scale/19.2,height:height*layout.scale/10.8,fontScale:layout.scale};
+  return <ResizeBox box={box} label={kind} textOnly={copy.barStyles?.[kind]?.textSizing} edit={box=>edit({barBoxes:{...copy.barBoxes,[kind]:box}})}>
+   <div className={`wxg-bar wxg-${kind}${kind==='title'&&(weatherKey||scene?.legendUrl)?' wxg-with-key':''}`} data-graphic={kind} data-bar-design={appearance.design} style={appearance.style}>
     <Text scrolling={kind === 'ticker'} key={`${scene?.id ?? 'startup'}:${kind}`} value={kind === 'title' ? titleText(scene, copy) : copy[kind]}
       commit={text => edit(kind === 'title' ? { manual: true, title: text } : { [kind]: text })} />
     {weatherKey && <TitleKey value={weatherKey} />}
-  </div>;
+    {kind==='title'&&scene?.legendUrl&&<ServiceLegend url={scene.legendUrl} label={scene.legendTitle??'NWS service legend'}/> }
+  </div></ResizeBox>;
 }
 export function GraphicsOverlay() {
   const { visible, scene } = useGraphics();
@@ -97,10 +92,13 @@ function SnapshotBar({ kind, snapshot, extraKeys }: { kind: Kind; snapshot: Grap
   const appearance = barPresentation(copy.barStyles?.[kind]);
   const [width, height] = sizes[kind];
   const value = kind === 'title' ? titleText(scene, copy) : copy[kind];
-  return <div className={`wxg-bar wxg-${kind} wxg-static${weatherKey ? ' wxg-with-key' : ''}`} data-graphic={kind} data-bar-design={appearance.design} style={{ ...appearance.style, left: layout.x, top: layout.y, width, height, transform: `scale(${layout.scale})`, pointerEvents: 'none' }}>
+  const box=copy.barBoxes?.[kind]??{x:layout.x/19.2,y:layout.y/10.8,width:width*layout.scale/19.2,height:height*layout.scale/10.8,fontScale:layout.scale};
+  return <ResizeBox box={box} label={kind}>
+  <div className={`wxg-bar wxg-${kind} wxg-static${kind==='title'&&(weatherKey||scene?.legendUrl)?' wxg-with-key':''}`} data-graphic={kind} data-bar-design={appearance.design} style={{...appearance.style,pointerEvents:'none'}}>
     <div className="wxg-text">{kind === 'ticker' ? <span className="wxg-crawl">{value}</span> : value}</div>
     {weatherKey && <TitleKey value={weatherKey} />}
-  </div>;
+    {kind==='title'&&scene?.legendUrl&&<ServiceLegend url={scene.legendUrl} label={scene.legendTitle??'NWS service legend'}/> }
+  </div></ResizeBox>;
 }
 
 export function GraphicsSnapshotOverlay({ snapshot, extraKeys = [] }: { snapshot: GraphicsSnapshot; extraKeys?: readonly WeatherKey[] }) {
@@ -119,11 +117,13 @@ export function GraphicsControls() {
   const { scene, copy, edit, visible, toggle, layouts, position, extraKeys } = useGraphics();
   return <section className="wxg-menu" aria-label="Graphics">
     <div className="panel-heading">GRAPHICS</div>
+    <button onClick={()=>{if(!visible.title)toggle('title');}}>Add / show title bar</button>
+    <button onClick={()=>{edit({manual:false});if(!visible.title)toggle('title');}}>Refresh title from scene</button>
     <BarLibrary value={copy.barStyles} onChange={barStyles => edit({ barStyles })} targets={['title', 'lower', 'ticker']} disabled={!scene} />
     {(['title', 'lower', 'ticker'] as Kind[]).map(kind => <label key={kind} className="wxg-toggle"><span>{kind === 'title' ? 'Title bar' : kind === 'lower' ? 'Lower third' : 'Ticker'}</span><input type="checkbox" checked={visible[kind]} onChange={() => toggle(kind)} /></label>)}
     <label>Title text<select aria-label="Title text" value={copy.manual ? 'blank' : 'scene'} onChange={event => edit(event.target.value === 'blank' ? { manual: true, title: '' } : { manual: false })}><option value="scene">Match scene</option><option value="blank">Blank / add text</option></select></label>
     <label>Title<input value={titleText(scene, copy)} onChange={event => edit({ manual: true, title: event.target.value })} /></label>
-    <label>Title bar size<input aria-label="Title bar size" type="range" min="25" max="100" value={Math.round(layouts.title.scale * 100)} onChange={event => position('title', { ...layouts.title, scale: Number(event.target.value) / 100 })} /></label>
+    <label>Title bar size<input aria-label="Title bar size" type="range" min="25" max="100" value={Math.round((copy.barBoxes?.title?.fontScale??layouts.title.scale) * 100)} onChange={event => { const scale=Number(event.target.value)/100; const box=copy.barBoxes?.title; if(box){const factor=scale/(box.fontScale??1);edit({barBoxes:{...copy.barBoxes,title:{...box,width:Math.min(100-box.x,box.width*factor),height:Math.min(100-box.y,(box.height??10)*factor),fontScale:scale}}});}else position('title',{...layouts.title,scale}); }} /></label>
     <KeysMenu extraKeys={extraKeys} selection={copy.keySelection ?? 'auto'} weatherKeyId={scene?.weatherKeyId} disabled={!scene} choose={keySelection => { edit({ keySelection }); if (keySelection !== 'none' && resolveWeatherKey(keySelection, scene?.weatherKeyId, extraKeys) && !visible.title) toggle('title'); }} />
     {visible.lower && <label>Lower third text<input value={copy.lower} onChange={event => edit({ lower: event.target.value })} /></label>}
     {visible.ticker && <label>Ticker text<input value={copy.ticker} onChange={event => edit({ ticker: event.target.value })} /></label>}

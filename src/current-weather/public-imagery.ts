@@ -41,8 +41,8 @@ export function publishedTimes(xml: string, layer: string): number[] {
   return [...new Set(times)].sort((a, b) => a - b).slice(-12);
 }
 
-export function imageRequest(product: ImageryProduct, time: number, bounds: number[], width: number, height: number): string {
-  const s = services[product], u = new URL(s.url);
+export function imageRequest(product: ImageryProduct, time: number, bounds: number[], width: number, height: number, satelliteFeed='longwave'): string {
+  const s = product==='satellite'?{...services.satellite,layer:`goes_${satelliteFeed}_imagery`}:services[product], u = new URL(s.url);
   const p = { SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetMap', LAYERS: s.layer, STYLES: '', FORMAT: 'image/png', TRANSPARENT: 'TRUE', SRS: 'EPSG:3857', BBOX: bounds.join(','), WIDTH: String(width), HEIGHT: String(height), TIME: new Date(time).toISOString() };
   for (const [k, v] of Object.entries(p)) u.searchParams.set(k, v);
   return u.href;
@@ -77,7 +77,7 @@ function viewportRequest(map: WeatherMap) {
   };
 }
 
-export interface PublicImageryOptions { product: ImageryProduct; anchor: string; opacity: number; onError: (message: string) => void }
+export interface PublicImageryOptions { radarField?: 'reflectivity'|'velocity'|'hydro'; satelliteFeed?: 'longwave'|'shortwave'|'visible'|'water_vapor'|'snow_ice'; product: ImageryProduct; anchor: string; opacity: number; onError: (message: string) => void }
 
 /** Two image sources keep the last completed frame visible until its replacement loads. */
 export class PublicImagery {
@@ -100,12 +100,12 @@ export class PublicImagery {
   private emit() { this.listener?.({ availableTimestamps: this.times, mrmsTimestamp: this.selected }); }
   async initialize() { this.expiryTimer = setInterval(() => this.expire(), 1000); this.map.on('moveend', this.move); this.map.on('resize', this.move); await this.refreshData(); }
   async refreshData() {
-    const s = services[this.options.product];
+    const s = this.options.product==='satellite'?{...services.satellite,layer:`goes_${this.options.satelliteFeed??'longwave'}_imagery`}:services[this.options.product];
     const response = await request(`${s.url}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`, this.lifetime.signal);
     const times = publishedTimes(await response.text(), s.layer);
     if (this.lifetime.signal.aborted) return;
-    this.times = this.options.product === 'radar' ? times.filter(t => currentRadarTime(t, Date.now(), 20 * 60000)) : times; this.emit();
-    if (this.options.product !== 'radar') { await this.load(times[times.length - 1]); return; }
+    this.times = times.filter(t => currentRadarTime(t, Date.now(), (this.options.product==='radar'?20:30) * 60000)); this.emit();
+    if (this.options.product !== 'radar') { if(!this.times.length){this.expire();throw Error('No satellite frame within 30 minutes');}await this.load(this.times[this.times.length - 1]); return; }
     let failure: unknown = Error('No MRMS frames within the current mosaic age limit');
     for (const candidate of [...this.times].reverse()) {
       if (this.lifetime.signal.aborted) return;
@@ -114,11 +114,11 @@ export class PublicImagery {
     this.expire(); throw failure;
   }
   private expire() {
-    if (this.options.product !== 'radar' || this.currentLoadedTimeKey === null || currentRadarTime(this.currentLoadedTimeKey, Date.now(), 20 * 60000)) return;
+    if (this.currentLoadedTimeKey === null || currentRadarTime(this.currentLoadedTimeKey, Date.now(), (this.options.product==='radar'?20:30) * 60000)) return;
     this.frame?.abort(); ++this.serial;
     if (this.active) this.remove(this.active);
     this.active = null; this.currentLoadedTimeKey = null; this.selected = null;
-    this.options.onError('MRMS unavailable: stale mosaic removed'); this.emit();
+    this.options.onError(this.options.product==='radar'?'MRMS unavailable: stale mosaic removed':'Satellite unavailable: stale imagery removed'); this.emit();
   }
   private move = () => { if (this.moveTimer) clearTimeout(this.moveTimer); this.moveTimer = setTimeout(() => { if (this.selected !== null) void this.load(this.selected).catch(e => this.options.onError(e instanceof Error ? e.message : 'NOAA image failed')); }, 400); };
   async setMRMSTimestamp(time: number) {
@@ -133,14 +133,14 @@ export class PublicImagery {
   private remove(id: string) { if (this.map.getLayer(id)) this.map.removeLayer(id); if (this.map.getSource(id)) this.map.removeSource(id); this.owned.delete(id); }
   private async load(time: number) {
     if (this.lifetime.signal.aborted || !this.times.includes(time)) return;
-    if (this.options.product === 'radar' && !currentRadarTime(time, Date.now(), 20 * 60000)) { this.expire(); throw Error('MRMS frame rejected: outside current mosaic age limit'); }
+    if (!currentRadarTime(time, Date.now(), (this.options.product==='radar'?20:30) * 60000)) { this.expire(); throw Error('Weather frame rejected: outside current age limit'); }
     this.frame?.abort(); const frame = new AbortController(); this.frame = frame;
     const signal = AbortSignal.any([frame.signal, this.lifetime.signal]); const serial = ++this.serial;
     this.pending = true; this.emit();
     const view = viewportRequest(this.map);
     let id: string | null = null;
     try {
-      const response = await request(imageRequest(this.options.product, time, view.mercator, view.width, view.height), signal);
+      const response = await request(imageRequest(this.options.product, time, view.mercator, view.width, view.height,this.options.satelliteFeed), signal);
       if (!response.headers.get('content-type')?.toLowerCase().includes('image/png')) throw Error('NOAA returned a service error instead of an image');
       const blob = await response.blob(); if (blob.size < 8) throw Error('NOAA returned an empty image');
       const decoded = await createImageBitmap(blob); decoded.close();
@@ -157,7 +157,7 @@ export class PublicImagery {
         catch (e) { finish(e instanceof Error ? e : Error('Could not add NOAA imagery')); }
       });
       if (signal.aborted || serial !== this.serial) return;
-      if (this.options.product === 'radar' && !currentRadarTime(time, Date.now(), 20 * 60000)) throw Error('MRMS frame expired during loading');
+      if (!currentRadarTime(time, Date.now(), (this.options.product==='radar'?20:30) * 60000)) throw Error('Weather frame expired during loading');
       const old = this.active; this.active = next; this.map.setPaintProperty(next, 'raster-opacity', this.opacity);
       if (old) this.remove(old);
       await new Promise<void>(resolve => { const done = () => { this.map.off('render', done); signal.removeEventListener('abort', done); resolve(); }; this.map.once('render', done); signal.addEventListener('abort', done, { once: true }); this.map.triggerRepaint(); });
@@ -271,6 +271,14 @@ export function radarReflectivityLayer(xml: string, siteId: string): string {
   throw Error(`${radarShortId(siteId)} capabilities do not advertise a site-qualified Super Resolution Base Reflectivity layer`);
 }
 
+export function radarProductLayer(xml:string,siteId:string,field='reflectivity'):string {
+ if(field==='reflectivity')return radarReflectivityLayer(xml,siteId);
+ const suffix=field==='velocity'?'sr_bvel':field==='hydro'?'bdhc':'';
+ if(!suffix)throw Error('Unsupported radar product');
+ const names=[...xml.matchAll(/<(?:\w+:)?Name\b[^>]*>\s*([^<]+?)\s*<\/(?:\w+:)?Name>/gi)].map(m=>m[1].trim());
+ const layer=names.find(n=>n.split(':').at(-1)?.toLowerCase()===`${siteId.toLowerCase()}_${suffix}`);
+ if(!layer)throw Error(`${siteId} does not advertise ${field}`);return layer;
+}
 export function radarImageRequest(siteId: string, layer: string, time: number, bounds: number[], width: number, height: number, useRadarScopePalette = true): string {
   const u = new URL(radarEndpoint(siteId));
   const p: Record<string, string> = {
@@ -285,7 +293,7 @@ export function radarImageRequest(siteId: string, layer: string, time: number, b
 // VCP 12 low-elevation surveillance/reflectivity pass: 21.459 deg/s = 3.58 RPM.
 const WSR88D_REFLECTIVITY_SWEEP_RPM = 3.58;
 
-export interface RadarImageryOptions extends PublicImageryOptions { product: 'radar'; mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
+export interface RadarImageryOptions extends PublicImageryOptions { product: 'radar'; initialRadarIds?:string[]; mrmsEnabled?: boolean; sweepsEnabled?: boolean; onNotice?: (message: string) => void }
 
 type RadarSiteRuntime = { layer: string; times: number[]; selected: number | null; activeLayer: string | null; serial: number };
 
@@ -298,7 +306,7 @@ export class RadarImagery {
   get sourceLabel() {
     const primary = this.activeIds[0];
     const siteTime = primary ? this.runtimes.get(primary)?.selected : null;
-    if (siteTime != null) return `${primary} WSR-88D`;
+    if (siteTime != null) return `${primary} WSR-88D${this.options.radarField==='velocity'?' · RADIAL VELOCITY':this.options.radarField==='hydro'?' · HYDROMETEOR CLASSIFICATION':''}`;
     return this.mosaic?.currentLoadedTimeKey != null ? 'MRMS MOSAIC · SITE RADAR UNAVAILABLE' : 'SITE RADAR UNAVAILABLE';
   }
   get statusDetail() { return [...this.failures.entries()].map(([id, reason]) => `${id}: ${reason}`).join('; '); }
@@ -323,7 +331,7 @@ export class RadarImagery {
   private sweepLineLayer = `${this.prefix}-sweep-lines`;
   private clickHandler: ((event: any) => void) | null = null;
 
-  constructor(private map: WeatherMap, private options: RadarImageryOptions) { this.opacity = options.opacity; this.sweepsEnabled = options.sweepsEnabled !== false; }
+  constructor(private map: WeatherMap, private options: RadarImageryOptions) { this.opacity = options.opacity; this.sweepsEnabled = options.sweepsEnabled !== false;if(options.initialRadarIds?.length)this.activeIds=options.initialRadarIds.slice(0,3); }
   on(_event: string, listener: (state: Record<string, unknown>) => void) { this.listener = listener; }
   private emit() {
     const primary = this.activeIds[0] ?? null, runtime = primary ? this.runtimes.get(primary) : undefined;
@@ -354,6 +362,7 @@ export class RadarImagery {
   }
 
   async setMRMSEnabled(enabled: boolean) {
+    if(enabled&&this.options.radarField&&this.options.radarField!=='reflectivity'){this.options.onNotice?.('MRMS reflectivity backup is not used for velocity/classification');return;}
     this.options.mrmsEnabled = enabled;
     if (!enabled) {
       this.mosaic?.destroy(); this.mosaic = null;
@@ -474,7 +483,7 @@ export class RadarImagery {
     await Promise.all(this.activeIds.map(async id => {
       try {
         const response = await request(radarCapabilities(id), this.lifetime.signal);
-        const capabilities = await response.text(), layer = radarReflectivityLayer(capabilities, id);
+        const capabilities = await response.text(), layer = radarProductLayer(capabilities, id,this.options.radarField);
         const times = publishedTimes(capabilities, layer);
         const runtime = this.runtimes.get(id) ?? { layer, times: [], selected: null, activeLayer: null, serial: 0 };
         runtime.layer = layer; runtime.times = times; this.runtimes.set(id, runtime);
@@ -564,7 +573,7 @@ export class RadarImagery {
       if (this.runtimes.has(id)) continue;
       try {
         const response = await request(radarCapabilities(id), this.lifetime.signal), capabilities = await response.text();
-        const layer = radarReflectivityLayer(capabilities, id), times = publishedTimes(capabilities, layer);
+        const layer = radarProductLayer(capabilities, id,this.options.radarField), times = publishedTimes(capabilities, layer);
         this.runtimes.set(id, { layer, times, selected: null, activeLayer: null, serial: 0 });
         await this.loadNewestUsable(id);
       } catch (error) { this.options.onError(`${radarShortId(id)} radar: ${error instanceof Error ? error.message : String(error)}`); }
@@ -576,6 +585,7 @@ export class RadarImagery {
   private remove(id: string) { if (this.map.getLayer(id)) this.map.removeLayer(id); if (this.map.getSource(id)) this.map.removeSource(id); this.owned.delete(id); }
 
   private async radarResponse(siteId: string, layer: string, time: number, view: ReturnType<typeof viewportRequest>, signal: AbortSignal): Promise<Response> {
+    if(this.options.radarField&&this.options.radarField!=='reflectivity')return request(radarImageRequest(siteId,layer,time,view.mercator,view.width,view.height,false),signal);
     try {
       const styled = await request(radarImageRequest(siteId, layer, time, view.mercator, view.width, view.height, true), signal);
       if (styled.headers.get('content-type')?.toLowerCase().includes('image/png')) {

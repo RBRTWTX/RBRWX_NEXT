@@ -21,14 +21,15 @@
     "native:assets": "node scripts/validate-native-assets.mjs",
     "verify:foundation": "npm run map:integrity && npm run native:assets && npm run map:contract && npm run map:style && npm run map:provider:test",
     "verify:modules": "node scripts/broadcast/verify-broadcast.mjs && node scripts/graphics/verify.mjs && node scripts/current-weather/verify.mjs && node scripts/forecast-graphics/verify.mjs && node scripts/qpf/verify.mjs",
-    "verify": "npm run repo:integrity && npm run repo:installer && npm run desktop:test && npm run bars:test && npm run weather:audit:test && npm run synoptic:test && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
+    "verify": "npm run repo:integrity && npm run repo:installer && npm run desktop:test && npm run bars:test && npm run onair:test && npm run weather:audit:test && npm run synoptic:test && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
     "verify:live": "npm run map:provider && npm run weather:audit",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
     "tauri": "tauri",
     "synoptic:test": "node --test scripts/synoptic/*.test.mjs",
     "desktop:test": "node --test scripts/desktop/*.test.mjs",
-    "bars:test": "node --test scripts/bar-library/*.test.mjs"
+    "bars:test": "node --test scripts/bar-library/*.test.mjs",
+    "onair:test": "node --test scripts/onair/*.test.mjs"
   },
   "dependencies": {
     "@azohra/meteo.grib": "0.1.4",

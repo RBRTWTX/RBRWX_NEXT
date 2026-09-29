@@ -1,3 +1,4 @@
+import {ResizeBox} from '../broadcast-graphics/ResizeBox';
 import {useEffect,useRef,useState,type PointerEvent,type CSSProperties} from 'react';
 import type {SceneSettings} from './model';
 export interface TitleLayout {x:number;y:number;width:number}
@@ -26,20 +27,16 @@ export function EditableText({value,edit,label,className=''}:{value:string;edit?
  >{editing?undefined:value}</span>;
 }
 export function TitleBar({settings,title,time,legend,edit,appearance}:{settings:SceneSettings;title:string;time:string;appearance?:{design?:string;style?:CSSProperties};legend?:{color:string;label:string}[];edit?:(patch:Partial<SceneSettings>)=>void}){
- const ref=useRef<HTMLDivElement>(null),gesture=useRef<{start:TitleLayout;x:number;y:number;corner?:string;canvas:{width:number;height:number};box:{width:number;height:number}}|null>(null);
- const [selected,setSelected]=useState(false),layout={...titleLayout(),...settings.titleLayout};
+ const layout=settings.barBoxes?.title??{...titleLayout(),...settings.titleLayout};
  const text=(id:string,value:string)=>settings.textOverrides?.[id]??value;
  const save=(id:string)=>edit?(value:string)=>edit({textOverrides:{...settings.textOverrides,[id]:value}}):undefined;
- function down(e:PointerEvent<HTMLDivElement>){if(!edit||e.button!==0||(e.target as HTMLElement).isContentEditable)return;const frame=ref.current!,canvas=frame.parentElement!.getBoundingClientRect(),box=frame.getBoundingClientRect();gesture.current={start:layout,x:e.clientX,y:e.clientY,corner:(e.target as HTMLElement).dataset.corner,canvas,box};setSelected(true);e.stopPropagation();(e.target as HTMLElement).setPointerCapture(e.pointerId);}
- return <div ref={ref} className={`synoptic-title-frame${edit?' is-editable':''}${selected?' is-selected':''}`} style={{left:`${layout.x}%`,top:`${layout.y}%`,width:`${layout.width}%`}} onPointerDown={down}
-  onPointerMove={e=>{const g=gesture.current;if(!g)return;e.stopPropagation();edit?.({titleLayout:layoutAfterDrag(g.start,e.clientX-g.x,e.clientY-g.y,g.corner,g.canvas,g.box)});}}
-  onPointerUp={e=>{gesture.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}} onPointerCancel={()=>{gesture.current=null;}} onLostPointerCapture={()=>{gesture.current=null;}}
-  onKeyDown={e=>{if(e.key==='Escape')setSelected(false);}}>
+ return <ResizeBox className="synoptic-title-frame" label="title" box={layout} textOnly={settings.barStyles?.title?.textSizing}
+ style={{'--box-width-compensation':94/layout.width} as CSSProperties}
+ edit={edit?box=>edit({barBoxes:{...settings.barBoxes,title:box}}):undefined}>
   <header className="synoptic-title" data-bar-design={appearance?.design} style={appearance?.style}>
    <div className="synoptic-title-main"><strong><EditableText label="Title text" value={text('title',title)} edit={save('title')}/></strong><b><EditableText label="Valid time text" value={text('time',time)} edit={save('time')}/></b></div>
    {text('subtitle',settings.subtitle)&&<div className="synoptic-subtitle"><EditableText label="Subtitle text" value={text('subtitle',settings.subtitle)} edit={save('subtitle')}/></div>}
    {settings.legendVisible&&!!legend?.length&&<div className="synoptic-title-keys" aria-label="Title bar keys">{legend.map((item,i)=><span key={`${item.label}-${i}`}><i style={{background:item.color}}/><EditableText label={`Key ${item.label}`} value={text(`key:${item.label}`,item.label)} edit={save(`key:${item.label}`)}/></span>)}</div>}
   </header>
-  {edit&&(['nw','ne','sw','se'] as const).map(corner=><button type="button" key={corner} className={`synoptic-resize synoptic-resize--${corner}`} data-corner={corner} aria-label={`Scale title ${corner} corner`} onKeyDown={e=>{if(['ArrowLeft','ArrowDown','ArrowRight','ArrowUp'].includes(e.key)){e.preventDefault();const amount=e.key==='ArrowLeft'||e.key==='ArrowDown'?-1:1;edit({titleLayout:{...layout,width:Math.min(100-layout.x,Math.max(20,layout.width+amount))}});}}}/>)}
- </div>;
+ </ResizeBox>;
 }

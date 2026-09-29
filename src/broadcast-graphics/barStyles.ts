@@ -4,6 +4,7 @@ export type BarTarget = 'title' | 'lower' | 'ticker' | 'status';
 export type BarDesign = 'current' | 'cp3a' | 'studio' | 'classic';
 export interface BarAppearance {
   design: BarDesign;
+  textSizing?: boolean;
   top?: string;
   bottom?: string;
   accent?: string;

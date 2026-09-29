@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),ts=require('../broadcast/vendor/typescript/typescript.cjs'),exports={};
 const code=ts.transpileModule(fs.readFileSync(new URL('../../src/synoptic/Chrome.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
-new Function('exports','require',code)(exports,require);
+new Function('exports','require',code)(exports,id=>id==='../broadcast-graphics/ResizeBox'?{ResizeBox:()=>null}:require(id));
 const {layoutAfterDrag}=exports;
 for(const corner of ['nw','ne','sw','se'])test(`${corner} scaling keeps the opposite corner fixed and stays in the canvas`,()=>{const start={x:10,y:10,width:70},canvas={width:1000,height:600},box={width:700,height:100};const next=layoutAfterDrag(start,corner.includes('w')?80:-80,corner.includes('n')?12:-12,corner,canvas,box);assert.ok(next.width<70&&next.width>=20);const right=start.x+start.width,bottom=start.y+box.height/canvas.height*100,nextHeight=box.height*(next.width/start.width)/canvas.height*100;if(corner.includes('w'))assert.ok(Math.abs(next.x+next.width-right)<1e-9);else assert.equal(next.x,start.x);if(corner.includes('n'))assert.ok(Math.abs(next.y+nextHeight-bottom)<1e-9);else assert.equal(next.y,start.y);assert.ok(next.x>=0&&next.y>=0&&next.x+next.width<=100&&next.y+nextHeight<=100);});
 test('dragging cannot lose the title outside the viewport',()=>{assert.deepEqual(layoutAfterDrag({x:3,y:3,width:94},-9999,9999,undefined,{width:1000,height:600},{width:940,height:120}),{x:0,y:80,width:94});});
