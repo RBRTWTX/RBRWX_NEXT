@@ -27,7 +27,7 @@ export function KeysMenu({ selection, weatherKeyId, disabled, choose, extraKeys 
     <div className="wxg-key-options" role="group" aria-label="Weather color keys">
       <button type="button" disabled={disabled} aria-pressed={selection === 'auto'} onClick={() => choose('auto')}>Match scene · {automatic?.name ?? 'No weather key'}</button>
       <button type="button" disabled={disabled} aria-pressed={selection === 'none'} onClick={() => choose('none')}>None</button>
-      {[...weatherKeys,...extraKeys].map(key => <button type="button" disabled={disabled} key={key.id} aria-pressed={selection === key.id} onClick={() => choose(key.id)}>
+      {[...weatherKeys,...extraKeys].filter((key,index,keys)=>keys.findIndex(candidate=>candidate.id===key.id)===index).map(key => <button type="button" disabled={disabled} key={key.id} aria-pressed={selection === key.id} onClick={() => choose(key.id)}>
         <span>{key.name}{key.unit && ` · ${key.unit}`}</span><KeyStrip value={key} thumbnail />
       </button>)}
     </div>

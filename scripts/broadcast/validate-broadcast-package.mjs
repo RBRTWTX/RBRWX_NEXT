@@ -152,7 +152,7 @@ for (const token of ["contentKey === 'map.broadcast'", "contentKey === 'map.sate
   if (!host.includes(token)) fail(`RBRWX host adapter is missing required behavior: ${token}`);
 }
 if (!host.includes('<ForecastGraphicsHost>') || !host.includes('<ForecastGraphicEditorStage')) fail('RBRWX host adapter is missing the non-map graphic host/stage.');
-if (!host.includes('<QpfHost>') || !host.includes('<QpfMapConnection>') || !host.includes('qpf: qpf.snapshot')) fail('RBRWX host adapter is missing the QPF map host/capture state.');
+if (!host.includes('<QpfHost>') || !host.includes('<QpfMapConnection>') || !host.includes('useProgramMirror(synoptic.map')) fail('RBRWX host adapter is missing the QPF map host/capture state.');
 
 assertScopedCss(await read('src/broadcast/broadcast.css'), 'src/broadcast/broadcast.css');
 assertScopedCss(await read('src/broadcast-host/broadcastHost.css'), 'src/broadcast-host/broadcastHost.css');

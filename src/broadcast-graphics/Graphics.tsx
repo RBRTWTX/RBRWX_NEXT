@@ -72,7 +72,7 @@ function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
     {kind==='title'&&scene?.legendUrl&&<ServiceLegend url={scene.legendUrl} label={scene.legendTitle??'NWS service legend'}/> }
   </div></ResizeBox>;
 }
-export function GraphicsOverlay() {
+export function GraphicsOverlay({suppressTitle=false}:{suppressTitle?:boolean}={}) {
   const { visible, scene } = useGraphics();
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1920, h: 1080 });
@@ -80,7 +80,7 @@ export function GraphicsOverlay() {
   const scale = Math.max(.001, Math.min(size.w / 1920, size.h / 1080));
   return <div className="wxg-overlay" ref={ref} data-title-visible={visible.title}>
     <div className="wxg-design" style={{ left: (size.w - 1920 * scale) / 2, top: (size.h - 1080 * scale) / 2, transform: `scale(${scale})` }}>
-      {(['title', 'lower', 'ticker'] as Kind[]).filter(kind => visible[kind]).map(kind => <Bar key={`${scene?.id}:${kind}`} kind={kind} viewScale={scale} />)}
+      {(['title', 'lower', 'ticker'] as Kind[]).filter(kind => visible[kind]&&!(suppressTitle&&kind==='title')).map(kind => <Bar key={`${scene?.id}:${kind}`} kind={kind} viewScale={scale} />)}
     </div>
   </div>;
 }

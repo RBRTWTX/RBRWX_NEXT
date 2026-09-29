@@ -1,0 +1,3 @@
+import{useState}from'react';
+export const EDIT_KEYS=['rbrwx-graphic-copy-v2','rbrwx-graphic-bar-styles-v1','rbrwx-synoptic-scenes-v1','rbrwx-onair-objects-v1','rbrwx-ewx-crawl-v1','rbrwx.forecast-graphics.cp1'];
+export function SessionControls(){const[confirm,setConfirm]=useState(false);return <section className="session-reset"><button onClick={()=>setConfirm(true)}>Reset scene edits</button>{confirm&&<div><p>Restore default titles, bars, objects and forecast graphics in all scenes? Imported asset files stay available.</p><button onClick={()=>{EDIT_KEYS.forEach(key=>localStorage.removeItem(key));window.location.reload();}}>Reset now</button><button onClick={()=>setConfirm(false)}>Cancel</button></div>}</section>;}

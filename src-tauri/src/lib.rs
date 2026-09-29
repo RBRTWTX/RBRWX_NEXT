@@ -180,7 +180,7 @@ fn request_operator_action(
 ) -> Result<(), String> {
     const ALLOWED: &[&str] = &["previous", "play-pause", "next", "loop", "refresh", "hide-menu",
         "bar-add", "bar-refresh", "ewx-toggle", "ewx-refresh", "sweeps", "pen", "track", "pen-undo", "pen-clear", "track-clear", "layers-off", "overlays-refresh",
-        "overlay:warnings", "overlay:lightning", "overlay:cone", "radar:reflectivity", "radar:velocity", "radar:hydro",
+        "overlay:warnings", "overlay:lightning", "overlay:cone", "overlay:surge", "radar:reflectivity", "radar:velocity", "radar:hydro",
         "satellite:longwave", "satellite:shortwave", "satellite:visible", "satellite:water_vapor", "satellite:snow_ice",
         "mrms:mrms-reflectivity", "mrms:mrms-composite", "mrms:mrms-qpe1", "mrms:mrms-qpe24", "mrms:mrms-rate", "mrms:mrms-type", "mrms:mrms-tops", "mrms:mrms-hail", "mrms:mrms-shear", "mrms:mrms-flood"];
     let speed = action.strip_prefix("speed:").and_then(|value| value.parse::<f64>().ok()).is_some_and(|value| value.is_finite() && (1.0..=150.0).contains(&value));
@@ -203,6 +203,9 @@ fn take_operator_actions(bridge: State<'_, CanvasBridgeState>) -> Result<Vec<Str
         .map_err(|_| "canvas bridge state lock poisoned".to_string())?;
     Ok(inner.operator_actions.drain(..).collect())
 }
+
+#[tauri::command]
+fn canvas_window_open(app: tauri::AppHandle) -> bool { app.get_webview_window("rbrwx-canvas").is_some() }
 
 #[tauri::command]
 async fn open_canvas_window(app: tauri::AppHandle) -> Result<(), String> {
@@ -242,6 +245,7 @@ pub fn run() {
             request_operator_action,
             take_operator_actions,
             open_canvas_window,
+            canvas_window_open,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RBRWX NEXT");

@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -337,6 +338,7 @@ function ObjectBody({ item, value, editing, beginEdit, commit, cancelEdit }: {
     }
   }, [editing, value]);
 
+  useLayoutEffect(()=>{const node=ref.current;if(!node||editing)return;const fit=()=>{node.style.removeProperty('font-size');node.style.alignContent='center';node.style.lineHeight='1.16';let size=parseFloat(getComputedStyle(node).fontSize);for(let i=0;i<45&&(node.scrollHeight>node.clientHeight+1||node.scrollWidth>node.clientWidth+1);i++){size*=.94;node.style.fontSize=`${size}px`;}node.style.alignContent='center';};fit();const observer=new ResizeObserver(fit);observer.observe(node);return()=>observer.disconnect();},[value,item.w,item.h,item.style,editing]);
   if (item.kind === 'asset' && item.assetPath) return <AssetImage relativePath={item.assetPath} />;
   if (item.kind === 'shape') return null;
 
@@ -516,7 +518,7 @@ export function ForecastGraphicEditorStage() {
       {graphics.objects.slice().sort((a, b) => a.z - b.z).map(item => <EditableObject key={item.id} item={item} scale={layout.scale} />)}
     </div>
     <AddMenu />
-    <div className="forecast-editor-hint">CLICK TO SELECT · DRAG TO MOVE · DRAG CORNER TO SCALE · DOUBLE-CLICK TEXT TO EDIT · DELETE KEY REMOVES</div>
+
   </section>;
 }
 

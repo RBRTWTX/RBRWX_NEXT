@@ -229,10 +229,10 @@ function sevenDay(): ForecastGraphicObject[] {
     out.push(panel(`day-${i}-panel`, `Day ${i + 1} panel`, x, 260, cardWidth, 675, 1));
     out.push(text(`day-${i}-name`, `Day ${i + 1} name`, 'day', x + 10, 300, cardWidth - 20, 64, 5, `day:${i}:name`));
     out.push(icon(`day-${i}-icon`, `Day ${i + 1} icon`, x + 30, 405, cardWidth - 60, 175, 6, `day:${i}:icon`));
-    out.push(text(`day-${i}-high`, `Day ${i + 1} high`, 'temperature', x + 10, 600, cardWidth - 20, 115, 6, `day:${i}:high`));
-    out.push(text(`day-${i}-low`, `Day ${i + 1} low`, 'condition', x + 10, 720, cardWidth - 20, 58, 6, `day:${i}:low`));
-    out.push(text(`day-${i}-pop`, `Day ${i + 1} rain chance`, 'metric', x + 10, 800, cardWidth - 20, 42, 6, `day:${i}:pop`));
-    out.push(text(`day-${i}-condition`, `Day ${i + 1} condition`, 'body', x + 10, 855, cardWidth - 20, 60, 6, `day:${i}:condition`));
+    out.push(text(`day-${i}-high`, `Day ${i + 1} high`, 'temperature', x + 10, 580, cardWidth - 20, 105, 6, `day:${i}:high`));
+    out.push(text(`day-${i}-low`, `Day ${i + 1} low`, 'condition', x + 10, 690, cardWidth - 20, 50, 6, `day:${i}:low`));
+    out.push(text(`day-${i}-pop`, `Day ${i + 1} rain chance`, 'metric', x + 10, 750, cardWidth - 20, 42, 6, `day:${i}:pop`));
+    out.push(text(`day-${i}-condition`, `Day ${i + 1} condition`, 'body', x + 10, 808, cardWidth - 20, 120, 6, `day:${i}:condition`));
   }
   return out;
 }

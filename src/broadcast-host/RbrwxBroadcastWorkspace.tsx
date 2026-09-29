@@ -1,12 +1,11 @@
 import{IconButton,ToolIcon}from'./OnAirIcons';
+import{SessionControls}from'./SessionControls';
+import{useMenuPosition}from'./menuPosition';
+import{ProgramMirror,useProgramMirror,type MirrorFrame}from'./ProgramMirror';
 import {OnAirMenu,useOnAirCommands,BroadcastToolButtons,HiddenPlayback} from './OnAirMenu';
-import {OnAirProvider,LiveOnAirDrawing,OnAirCapture,useOnAirTools,type ToolsSnapshot} from '../synoptic/OnAirTools';
-import {EwxControls,LiveEwxScroll,EwxScroll,useEwxAlerts,type EwxState} from '../current-weather/EwxAlerts';
-import {useGraphics} from '../broadcast-graphics/Graphics';
-import { SynopticHost, SynopticOverlay, SynopticControls, SynopticPlayback, SynopticShell, useSynoptic } from '../synoptic/Scene';
-import { SynopticRuntime } from '../synoptic/runtime';
-import { emptyPack, type PackSnapshot } from '../synoptic/model';
-import type { Map as SynopticMap } from 'maplibre-gl';
+import {OnAirProvider,LiveOnAirDrawing,useOnAirTools} from '../synoptic/OnAirTools';
+import {EwxControls,LiveEwxScroll,useEwxAlerts} from '../current-weather/EwxAlerts';
+import { SynopticHost, SynopticOverlay, SynopticControls, SynopticPlayback, useSynoptic } from '../synoptic/Scene';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { BroadcastMap, type MapHealth } from '../map/BroadcastMap';
@@ -22,8 +21,6 @@ import {
 import { RBRWX_INITIAL_RUNDOWN_SCENE_IDS, RBRWX_SCENE_CATALOG } from './sceneCatalog';
 import './broadcastHost.css';
 import { GraphicsHost, GraphicsOverlay, GraphicsControls } from './GraphicsHost';
-import { GraphicsSnapshotOverlay, useGraphicsSnapshot, type GraphicsSnapshot } from '../broadcast-graphics/Graphics';
-import palettes from '../current-weather/palettes.json';
 import {
   CurrentWeatherHost,
   CurrentProductSelector,
@@ -33,20 +30,14 @@ import {
   WeatherMapConnection,
 } from './CurrentWeatherHost';
 import { useCurrentWeather } from '../current-weather/CurrentWeather';
-import { CurrentWeatherController } from '../current-weather/controller';
-import { defaultOptions, initialSnapshot, type Options, type Product, type Snapshot } from '../current-weather/model';
-import { QpfController } from '../qpf/controller';
-import { QPF_DEFAULT_OPACITY } from '../qpf/model';
 import {
   ForecastGraphicsHost,
   ForecastGraphicEditorStage,
-  ForecastGraphicSnapshotStage,
   ForecastGraphicProperties,
   ForecastGraphicTools,
   useForecastGraphics,
-  type ForecastGraphicsSnapshot,
 } from './ForecastGraphicsHost';
-import { QpfHost, QpfMapConnection, QpfControls, QpfStatus, useQpf, type QpfSnapshot } from './QpfHost';
+import { QpfHost, QpfMapConnection, QpfControls, QpfStatus, useQpf } from './QpfHost';
 
 const initialVisibility: Record<BroadcastLayerGroup, boolean> = {
   roads: true,
@@ -60,14 +51,6 @@ type ContextTab = 'properties' | 'palettes' | 'tools';
 type ContentTab = 'scenes' | 'data' | 'lineup';
 type OperatorAction = string;
 
-interface CaptureWeatherState {
-  product: Product;
-  options: Options;
-  activeRadarIds: string[];
-  primaryRadarId: string | null;
-  selectedTime: number | null;
-}
-
 interface CanvasStateEnvelope {
   revision: number;
   state: CapturePresentationState | null;
@@ -75,18 +58,9 @@ interface CanvasStateEnvelope {
 
 interface CapturePresentationState {
   schema: 1;
-  scene: { id: string; title: string; weatherKeyId?: string; contentKey: string } | null;
-  basemapMode: BroadcastBasemapMode;
-  visibility: Record<BroadcastLayerGroup, boolean>;
-  camera: CameraState;
-  weather: CaptureWeatherState;
-  graphics: GraphicsSnapshot;
-  forecastGraphics: ForecastGraphicsSnapshot;
-  qpf: QpfSnapshot;
-  synoptic: PackSnapshot;
+  mirror?: MirrorFrame;
   hiddenMenuAvailable: boolean;
-  ewx?: EwxState;
-  tools?:ToolsSnapshot;
+  ewx?: { enabled: boolean };
 }
 
 const healthLabel: Record<MapHealth, string> = {
@@ -161,12 +135,11 @@ function CanvasHiddenMenu({
 }) {
   const broadcast = useBroadcast();
   const [open, setOpen] = useState(false);
-  const [menuTop,setMenuTop]=useState(120);
-  useEffect(()=>{const update=()=>{const stage=document.querySelector('.operator-canvas-stage,.capture-canvas-stage');if(!stage)return;const bounds=stage.getBoundingClientRect(),title=stage.querySelector('.synoptic-title-frame,.wxg-title');setMenuTop(title?Math.min(bounds.height*.45,Math.max(8,title.getBoundingClientRect().bottom-bounds.top+8)):8);};update();const timer=setInterval(update,200);return()=>clearInterval(timer);},[]);
+  const menuStyle=useMenuPosition();
   if (!available) return null;
   const playing = broadcast.state.transport === 'playing';
 
-  return <div className="canvas-hidden-menu onair-wide" style={{top:menuTop}}>
+  return <div className="canvas-hidden-menu onair-wide" style={menuStyle}>
     <button
       className="canvas-hidden-menu__trigger"
       type="button"
@@ -334,7 +307,7 @@ function ContextDock({
 
       {tab === 'palettes' && <>{synoptic.active ? <SynopticControls /> : <GraphicsControls />}<EwxControls /></>}
 
-      {tab === 'tools' && <>
+      {tab === 'tools' && <><SessionControls />
         {forecast.active ? <ForecastGraphicTools /> : <>
           <div className="panel-heading"><span>MAP APPEARANCE</span><small>reference layers</small></div>
           {(Object.keys(visibility) as BroadcastLayerGroup[]).map(group => <button
@@ -394,7 +367,6 @@ function OperatorWorkspace({
 }) {
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
-  const graphics = useGraphicsSnapshot();
   const ewx = useEwxAlerts();
   const tools=useOnAirTools();
   const onAirCommand=useOnAirCommands();
@@ -405,7 +377,7 @@ function OperatorWorkspace({
   const [rightTab, setRightTab] = useState<ContextTab>('properties');
   const [contentTab, setContentTab] = useState<ContentTab>('scenes');
   const [popoutMessage, setPopoutMessage] = useState('');
-  const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(()=>{let stopped=false;const check=async()=>{try{const open=await invoke<boolean>('canvas_window_open');if(!stopped&&typeof open==='boolean')setPopoutMessage(open?'CANVAS WINDOW OPEN':'');}catch{}};void check();const timer=setInterval(()=>void check(),2000);return()=>{stopped=true;clearInterval(timer);};},[]);
   const zoomLabel = useMemo(() => camera.zoom.toFixed(1), [camera.zoom]);
 
   const toggle = useCallback((group: BroadcastLayerGroup) => {
@@ -417,38 +389,9 @@ function OperatorWorkspace({
     void invoke('open_canvas_window').then(() => setPopoutMessage('CANVAS WINDOW OPEN')).catch(error => setPopoutMessage(`POP OUT FAILED: ${String(error)}`));
   }, []);
 
-  const captureState = useMemo<CapturePresentationState>(() => ({
-    schema: 1,
-    scene: broadcast.programScene ? {
-      id: broadcast.state.programItemId ?? broadcast.programScene.id,
-      title: broadcast.programScene.title,
-      weatherKeyId: broadcast.programScene.weatherKeyId,
-      contentKey: broadcast.programScene.contentKey,
-    } : null,
-    basemapMode,
-    visibility,
-    camera,
-    weather: {
-      product: weather.product,
-      options: weather.options,
-      activeRadarIds: [...weather.snapshot.activeRadarIds],
-      primaryRadarId: weather.snapshot.primaryRadarId,
-      selectedTime: weather.snapshot.selectedTime,
-    },
-    graphics,
-    forecastGraphics: forecast.snapshot,
-    qpf: qpf.snapshot,
-    synoptic: synoptic.snapshot,
-    hiddenMenuAvailable, ewx:ewx.state,tools:tools.snapshot,
-  }), [tools.snapshot,ewx.state, basemapMode, broadcast.programScene, broadcast.state.programItemId, camera, forecast.snapshot, graphics, hiddenMenuAvailable, qpf.snapshot, synoptic.snapshot, visibility, weather.options, weather.product, weather.snapshot.activeRadarIds, weather.snapshot.primaryRadarId, weather.snapshot.selectedTime]);
-
-  useEffect(() => {
-    if (publishTimer.current) clearTimeout(publishTimer.current);
-    publishTimer.current = setTimeout(() => {
-      void invoke('set_canvas_state', { state: captureState }).catch(() => undefined);
-    }, 60);
-    return () => { if (publishTimer.current) clearTimeout(publishTimer.current); };
-  }, [captureState]);
+  useProgramMirror(synoptic.map, popoutMessage==='CANVAS WINDOW OPEN', async mirror=>{
+    await invoke('set_canvas_state',{state:{schema:1,mirror,hiddenMenuAvailable,ewx:{enabled:ewx.state.enabled}}});
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -459,6 +402,10 @@ function OperatorWorkspace({
       else if (synoptic.active && action === 'next') synoptic.step(1);
       else if (synoptic.active && action === 'play-pause') synoptic.play();
       else if (synoptic.active && action === 'loop') synoptic.edit({loop:!synoptic.snapshot.settings.loop});
+      else if (['radar','satellite'].includes(weather.product)&&action==='previous') weather.controller.step(-1);
+      else if (['radar','satellite'].includes(weather.product)&&action==='next') weather.controller.step(1);
+      else if (['radar','satellite'].includes(weather.product)&&action==='play-pause') weather.controller.play();
+      else if (['radar','satellite'].includes(weather.product)&&action==='loop') weather.edit({loop:!weather.options.loop});
       else if (action === 'previous') broadcast.previous();
       else if (action === 'play-pause') broadcast.state.transport === 'playing' ? broadcast.pause() : broadcast.play();
       else if (action === 'next') broadcast.next();
@@ -481,7 +428,7 @@ function OperatorWorkspace({
     void poll();
     const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [onAirCommand,broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather.controller]);
+  }, [onAirCommand,broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather]);
 
   return <main className="app-shell rbrwx-broadcast-workspace">
     <header className="topbar operator-topbar">
@@ -519,7 +466,7 @@ function OperatorWorkspace({
         />}</QpfMapConnection>}</WeatherMapConnection>
       </div>
       {forecast.active && <ForecastGraphicEditorStage />}
-      {synoptic.active ? <SynopticOverlay /> : <GraphicsOverlay />}
+      {synoptic.active ? <SynopticOverlay /> : <GraphicsOverlay suppressTitle={forecast.active} />}
       <LiveEwxScroll /><LiveOnAirDrawing />
       <CanvasHiddenMenu available={hiddenMenuAvailable} onAvailableChange={setHiddenMenuAvailable} onPopout={openPopout} />
     </section>
@@ -593,11 +540,10 @@ export function RbrwxBroadcastWorkspace() {
 
 function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean }) {
   const [open, setOpen] = useState(false);
-  const [menuTop,setMenuTop]=useState(120);
-  useEffect(()=>{const update=()=>{const stage=document.querySelector('.operator-canvas-stage,.capture-canvas-stage');if(!stage)return;const bounds=stage.getBoundingClientRect(),title=stage.querySelector('.synoptic-title-frame,.wxg-title');setMenuTop(title?Math.min(bounds.height*.45,Math.max(8,title.getBoundingClientRect().bottom-bounds.top+8)):8);};update();const timer=setInterval(update,200);return()=>clearInterval(timer);},[]);
+  const menuStyle=useMenuPosition();
   if (!available) return null;
   const action = (value: OperatorAction) => void invoke('request_operator_action', { action: value }).catch(() => undefined);
-  return <div className="canvas-hidden-menu canvas-hidden-menu--capture onair-wide" style={{top:menuTop}}>
+  return <div className="canvas-hidden-menu canvas-hidden-menu--capture onair-wide" style={menuStyle}>
     <button className="canvas-hidden-menu__trigger" type="button" aria-label="Open RBRTW hidden canvas menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>RBRTW</button>
     {open && <div className="canvas-hidden-menu__panel" role="group">
       <BroadcastToolButtons command={action} ewx={ewx} draw={false}/>
@@ -613,72 +559,7 @@ function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean 
   </div>;
 }
 
-function CaptureWeatherCanvas({ state }: { state: CapturePresentationState }) {
-  const [snapshot, setSnapshot] = useState<Snapshot>(initialSnapshot);
-  const controller = useMemo(() => new CurrentWeatherController(setSnapshot), []);
-  const qpfController = useMemo(() => new QpfController(() => undefined), []);
-  const radarSync = useRef(false);
-  const synopticController = useMemo(() => new SynopticRuntime(() => undefined), []);
-  const [synopticMap, setSynopticMap] = useState<SynopticMap | null>(null);
-  useEffect(() => { if (synopticMap) synopticController.renderSnapshot(state.synoptic ?? emptyPack()); }, [synopticController, synopticMap, state.synoptic]);
-  useEffect(() => () => synopticController.disconnect(), [synopticController]);
-
-  useEffect(() => () => { controller.destroy(); qpfController.destroy(); }, [controller, qpfController]);
-  useEffect(() => {
-    if (state.forecastGraphics.active) { controller.destroy(); return; }
-    const sceneId = state.scene?.id ?? 'capture';
-    controller.select(sceneId, state.weather.product, state.weather.options ?? defaultOptions(), '');
-  }, [controller, state.forecastGraphics.active, state.scene?.id, state.weather.options, state.weather.product]);
-
-  useEffect(() => {
-    qpfController.select(state.forecastGraphics.active ? null : state.qpf.product, state.qpf.opacity ?? QPF_DEFAULT_OPACITY);
-  }, [qpfController, state.forecastGraphics.active, state.qpf.opacity, state.qpf.product]);
-
-  useEffect(() => {
-    if (state.forecastGraphics.active || state.weather.product !== 'radar' || radarSync.current || !snapshot.radarSites.length) return;
-    const desired = state.weather.activeRadarIds;
-    const current = snapshot.activeRadarIds;
-    if (JSON.stringify(desired) === JSON.stringify(current) && (state.weather.primaryRadarId ?? desired[0] ?? null) === snapshot.primaryRadarId) return;
-    radarSync.current = true;
-    void (async () => {
-      try {
-        if (!desired.length) {
-          await controller.setPrimaryRadar('');
-          return;
-        }
-        await controller.setPrimaryRadar(state.weather.primaryRadarId ?? desired[0]);
-        await new Promise(resolve => setTimeout(resolve, 30));
-        const afterPrimary = controller.snapshot.activeRadarIds;
-        for (const id of desired.slice(1)) if (!afterPrimary.includes(id)) await controller.toggleRadarSite(id);
-        for (const id of [...controller.snapshot.activeRadarIds]) if (!desired.includes(id)) await controller.toggleRadarSite(id);
-      } finally {
-        radarSync.current = false;
-      }
-    })();
-  }, [controller, snapshot.activeRadarIds, snapshot.primaryRadarId, snapshot.radarSites.length, state.forecastGraphics.active, state.weather.activeRadarIds, state.weather.primaryRadarId, state.weather.product]);
-
-  useEffect(() => {
-    const target = state.weather.selectedTime;
-    if (state.forecastGraphics.active || (state.weather.product !== 'radar' && state.weather.product !== 'satellite') || target === null) return;
-    if (snapshot.selectedTime === target || !snapshot.times.includes(target)) return;
-    void controller.seek(target);
-  }, [controller, snapshot.selectedTime, snapshot.times, state.forecastGraphics.active, state.weather.product, state.weather.selectedTime]);
-
-  return <section className="capture-canvas-stage">
-    {state.forecastGraphics.active ? <ForecastGraphicSnapshotStage snapshot={state.forecastGraphics} /> : <BroadcastMap
-      onMapReady={map => { const releaseWeather = controller.connect(map, 'rbrwx-county-boundary'); const releaseQpf = qpfController.connect(map, 'rbrwx-county-boundary'); const releaseSynoptic = synopticController.connect(map); setSynopticMap(map); return () => { releaseSynoptic(); releaseQpf(); releaseWeather(); }; }}
-      basemapMode={state.basemapMode}
-      visibility={state.visibility}
-      camera={state.camera}
-      interactive={false}
-      onHealthChange={() => undefined}
-    />}
-    {state.synoptic?.productId ? <SynopticShell snapshot={state.synoptic} map={synopticMap} /> : <GraphicsSnapshotOverlay snapshot={state.graphics} extraKeys={palettes.keys} />}
-    {state.tools&&<OnAirCapture map={synopticMap} snapshot={state.tools}/>}
-    {state.ewx&&<EwxScroll state={state.ewx}/>}
-    <CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled} />
-  </section>;
-}
+function CaptureWeatherCanvas({state}:{state:CapturePresentationState}){return <section className="capture-canvas-stage">{state.mirror?<ProgramMirror frame={state.mirror}/>:<div className="mirror-stalled">WAITING FOR LIVE PROGRAM</div>}<CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled}/></section>;}
 
 export function RbrwxCanvasCaptureWorkspace() {
   const [state, setState] = useState<CapturePresentationState | null>(null);
@@ -703,7 +584,7 @@ export function RbrwxCanvasCaptureWorkspace() {
       }
     };
     void poll();
-    const timer = window.setInterval(() => void poll(), 75);
+    const timer = window.setInterval(() => void poll(), 33);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, []);
 

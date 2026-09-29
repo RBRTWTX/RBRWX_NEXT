@@ -440,3 +440,8 @@
   font: 750 8px Arial,sans-serif;
   letter-spacing: .06em;
 }
+/* Editing remains available without any on-air handles or selection decoration. */
+.rbrwx-broadcast-workspace .forecast-object--selected{outline:none;outline-offset:0}
+.rbrwx-broadcast-workspace .forecast-resize-handle{opacity:0;border:0;box-shadow:none;background:transparent}
+.rbrwx-broadcast-workspace .forecast-object__text[contenteditable=true]{background:transparent;box-shadow:none;padding:0;outline:none}
+.rbrwx-broadcast-workspace .forecast-object__text{overflow-wrap:anywhere}

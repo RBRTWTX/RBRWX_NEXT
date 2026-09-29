@@ -5,8 +5,8 @@ async function json(url:string,signal:AbortSignal){const v=await (await response
 export function timestamp(raw:unknown):number|null {
  if(typeof raw==='number')return raw>1e12&&Number.isFinite(raw)?raw:null;
  if(typeof raw!=='string')return null;
- const advisory=/^(\d{1,2})(\d{2}) (AM|PM) (GMT|UTC) \w{3} (\w{3}) (\d{1,2}) (\d{4})$/.exec(raw);
- if(advisory){const month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(advisory[5]);if(month<0)return null;return Date.UTC(+advisory[7],month,+advisory[6],(+advisory[1]%12)+(advisory[3]==='PM'?12:0),+advisory[2]);}
+ const advisory=/^(\d{1,2})(\d{2}) (AM|PM) (GMT|UTC|AST|EDT|EST|CDT|CST|MDT|MST|PDT|PST|HST) \w{3} (\w{3}) (\d{1,2}) (\d{4})$/.exec(raw);
+ if(advisory){const month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(advisory[5]);if(month<0)return null;return Date.UTC(+advisory[7],month,+advisory[6],(+advisory[1]%12)+(advisory[3]==='PM'?12:0)+({GMT:0,UTC:0,AST:4,EDT:4,EST:5,CDT:5,CST:6,MDT:6,MST:7,PDT:7,PST:8,HST:10}[advisory[4]]??0),+advisory[2]);}
  if(/^\d{12}$/.test(raw))return Date.UTC(+raw.slice(0,4),+raw.slice(4,6)-1,+raw.slice(6,8),+raw.slice(8,10),+raw.slice(10,12));
  raw=raw.replace(/^(\d{1,2})(\d{2}) (AM|PM) /,'$1:$2 $3 ');
  const value=Date.parse(String(raw));return Number.isFinite(value)?value:null;
@@ -50,13 +50,13 @@ async function limitedMap<T,R>(values:T[],work:(value:T)=>Promise<R>):Promise<R[
 }
 export async function vectorPayload(p:Product,signal:AbortSignal):Promise<Payload>{
  if(p.kind==='alerts'){
-  const all:Feature[]=[];let url='https://api.weather.gov/alerts/active?status=actual&limit=500';
+  const all:Feature[]=[];let url='https://api.weather.gov/alerts/active?status=actual'+(p.id==='watches'?'&event=Tornado%20Watch,Severe%20Thunderstorm%20Watch':p.id==='surge'?'&event=Storm%20Surge%20Watch,Storm%20Surge%20Warning':'');
   for(let page=0;page<10&&url;page++){
    if(new URL(url).origin!=='https://api.weather.gov')throw Error('Invalid NWS pagination URL');
    const j=await json(url,signal);if(!Array.isArray(j.features))throw Error('Invalid NWS alerts feed');all.push(...j.features);url=j.pagination?.next??'';
   }
   if(url)throw Error('Incomplete alerts pagination');
-  const now=Date.now();const active=all.filter(f=>{const a=f.properties??{},e=timestamp(a.ends)??timestamp(a.expires);return e!==null&&e>now&&(!p.field||String(a.event).includes(p.field))&&(p.id!=='watches'||['Tornado Watch','Severe Thunderstorm Watch'].includes(String(a.event)));});
+  const now=Date.now();const active=all.filter(f=>{const a=f.properties??{},e=timestamp(a.ends)??timestamp(a.expires);return a.status==='Actual'&&a.messageType!=='Cancel'&&e!==null&&e>now&&(!p.field||String(a.event).includes(p.field))&&(p.id!=='watches'||['Tornado Watch','Severe Thunderstorm Watch'].includes(String(a.event)));});
   const zoneCache=new Map<string,Promise<any>>();
   const features=await limitedMap(active,async f=>{
    const a=f.properties??{};let geometry=f.geometry;
@@ -64,7 +64,7 @@ export async function vectorPayload(p:Product,signal:AbortSignal):Promise<Payloa
     const zones=await limitedMap<string,any>(a.affectedZones,async u=>{if(!u.startsWith('https://api.weather.gov/zones/'))throw Error('Invalid alert zone');if(!zoneCache.has(u))zoneCache.set(u,json(u,signal).then(z=>z.geometry));return zoneCache.get(u)!;});
     const polygons=zones.flatMap(g=>g?.type==='Polygon'?[g.coordinates]:g?.type==='MultiPolygon'?g.coordinates:[]);if(polygons.length)geometry={type:'MultiPolygon',coordinates:polygons};
    }
-   const event=String(a.event??'Alert'),color=event.includes('Tornado Warning')?'#ff2020':event.includes('Severe Thunderstorm Warning')?'#ffdb00':event.includes('Flash Flood')?'#21d66b':event.includes('Watch')?'#ff932b':'#d050d0';
+   const event=String(a.event??'Alert'),color=event.includes('Tornado Warning')?'#ff2020':event.includes('Severe Thunderstorm Warning')?'#ffdb00':event.includes('Flash Flood')?'#21d66b':event==='Tornado Watch'?'#ffff00':event==='Severe Thunderstorm Watch'?'#ff8080':event==='Storm Surge Warning'?'#b524f7':event==='Storm Surge Watch'?'#db7ff7':event.includes('Watch')?'#ff932b':'#d050d0';
    return {...f,geometry,properties:{...a,_label:event,_color:color,_expires:timestamp(a.ends)??timestamp(a.expires)}};
   });
   const missing=features.filter(f=>!f.geometry).length;
@@ -73,7 +73,7 @@ export async function vectorPayload(p:Product,signal:AbortSignal):Promise<Payloa
  const metadata=await json(p.service+'?f=json',signal);
  const layers=(metadata.layers??[]).filter((l:{name:string;subLayerIds?:number[];type:string})=>!l.subLayerIds&&l.type==='Feature Layer'&&new RegExp(p.match??'','i').test(l.name)&&(!p.id.startsWith('tropical-')||p.id==='tropical-outlook'||(p.id==='tropical-pacific'?/^EP/i.test(l.name):/^AT/i.test(l.name))));
  if(!layers.length)throw Error('Requested official product layers absent from service');
- const features:Feature[]=[];let earliest:number|null=null,expiry:number|null=null;
+ const features:Feature[]=[];let earliest:number|null=null,expiry:number|null=null;let staleFeatures=0;
  const legend:{label:string;color:string}[]=[];
  await limitedMap(layers,async (layer:any)=>{
   const def=await json(`${p.service}/${layer.id}?f=json`,signal),renderer=def.drawingInfo?.renderer;
@@ -81,15 +81,15 @@ export async function vectorPayload(p:Product,signal:AbortSignal):Promise<Payloa
   for(const item of renderer?.uniqueValueInfos??[]){const color=colorOf(item.symbol);if(!legend.some(x=>x.label===item.label))legend.push({label:item.label,color});}
   let offset=0;
   while(true){const q=new URLSearchParams({where:'1=1',outFields:'*',returnGeometry:'true',outSR:'4326',f:'geojson',resultOffset:String(offset),resultRecordCount:'1000'});const result=await json(`${p.service}/${layer.id}/query?${q}`,signal);if(result.type!=='FeatureCollection')throw Error('Invalid official GeoJSON');
-   for(const f of result.features as Feature[]){const a=Object.fromEntries(Object.entries(f.properties??{}).map(([k,v])=>[k.toUpperCase(),v])),t=getTime(a,['issue_time','ISSUE','ISSUANCE','ADVDATE','DTG','INIT_ISS'] ),e=getTime(a,['expire_time','EXPIRE','END_TIME','VALID_TO','EXPIRES']);if(/^no\s*area$/i.test(String(a.NAME??'')))continue;if(e!==null&&e<Date.now())continue;
+   for(const f of result.features as Feature[]){const a=Object.fromEntries(Object.entries(f.properties??{}).map(([k,v])=>[k.toUpperCase(),v])),t=getTime(a,['issue_time','ISSUE','ISSUANCE','ADVDATE','DTG','INIT_ISS','IDP_FILEDATE'] ),e=getTime(a,['expire_time','EXPIRE','END_TIME','VALID_TO','EXPIRES']);if(/^no\s*area$/i.test(String(a.NAME??'')))continue;if(e!==null&&e<Date.now())continue;if(t!==null&&(Date.now()-t>p.ageMinutes*60000||t>Date.now()+60000)){staleFeatures++;continue;}
     if(t!==null)earliest=earliest===null?t:Math.min(earliest,t);if(e!==null)expiry=expiry===null?e:Math.min(expiry,e);
     const symbol=renderer?.uniqueValueInfos?.find((v:any)=>String(v.value)===String(a[String(renderer.field1).toUpperCase()]))?.symbol??renderer?.symbol;
-    features.push({...f,properties:{...a,_layer:layer.name,_color:typeof a.FILL==='string'?a.FILL:colorOf(symbol),_stroke:typeof a.STROKE==='string'?a.STROKE:colorOf(symbol),_label:String(a.DATELBL ? `${a.DATELBL} · ${a.MAXWIND??'—'} kt` : a.LABEL??a.STORMNAME??a.TCWW??layer.name),_expires:e,_issue:t,_valid:getTime(a,['VALID','VALID_TIME']),_storm:a.STORMNAME??null}});
+    features.push({...f,properties:{...a,_layer:layer.name,_color:typeof a.FILL==='string'?a.FILL:colorOf(symbol),_stroke:typeof a.STROKE==='string'?a.STROKE:colorOf(symbol),_label:String(a.DATELBL ? `${a.DATELBL} · ${a.MAXWIND??'—'} kt` : a.LABEL??a.STORMNAME??a.TCWW??layer.name),_expires:e,_issue:t,_valid:getTime(a,['VALID','VALID_TIME']),_storm:typeof a.STORMNAME==='string'?a.STORMNAME.replace(/^(?:Hurricane|Tropical Storm|Tropical Depression|Post-Tropical Cyclone|Potential Tropical Cyclone)\s+/i,'').trim():null}});
    }
    if(!result.exceededTransferLimit)break;offset+=result.features.length;if(offset>20000||!result.features.length)throw Error('Incomplete official layer pagination');
   }
  });
- if(earliest!==null&&Date.now()-earliest>p.ageMinutes*60000)throw Error('Official product issuance is stale');
+ if(staleFeatures&&!features.length)throw Error('Official product issuance is stale');
  const validTimes=[...new Set(features.map(f=>f.properties?._valid).filter((t):t is number=>typeof t==='number'))];
  return {time:p.family==='tropical'?earliest:validTimes.length===1?validTimes[0]:null,timeLabel:p.family==='tropical'?'ADVISORY':'VALID',expires:Math.min(expiry??Infinity,earliest!==null?earliest+p.ageMinutes*60000:Date.now()+300000),data:{type:'FeatureCollection',features},legend,note:features.length?`${p.source} · ${features.length} features${earliest===null?' · issuance not supplied; inspect feature details':''}`:'No features returned by the official service'};
 }

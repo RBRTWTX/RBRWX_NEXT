@@ -64,7 +64,7 @@ try {
   assert.doesNotMatch(dataSource, /openweathermap|weatherapi|accuweather/i);
 
   const host = read('src/broadcast-host/RbrwxBroadcastWorkspace.tsx');
-  for (const token of ['ForecastGraphicsHost','ForecastGraphicEditorStage','ForecastGraphicSnapshotStage','forecastGraphics: forecast.snapshot','operator-map-layer--behind-graphic']) assert.ok(host.includes(token), token);
+  for (const token of ['ForecastGraphicsHost','ForecastGraphicEditorStage','ProgramMirror','useProgramMirror(synoptic.map','operator-map-layer--behind-graphic']) assert.ok(host.includes(token), token);
   const currentHost = read('src/broadcast-host/CurrentWeatherHost.tsx');
   assert.match(currentHost, /contentKey\.startsWith\('graphic\.'\)/);
   assert.match(currentHost, /held\.current/, 'Weather state must remain mounted while a non-map scene is on Program');

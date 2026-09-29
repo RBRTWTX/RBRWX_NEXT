@@ -36,7 +36,7 @@ for (const [value, color] of [['0.01','#7fff00'],['0.1','#00ff00'],['0.25','#088
   if (!controller.toLowerCase().includes(`${value}, '${color}'`)) fail(`WPC QPF palette entry missing: ${value} ${color}`);
 }
 for (const token of ['QpfProvider','QpfMapConnection','QpfControls','QpfStatus']) if (!runtime.includes(token) && !host.includes(token)) fail(`QPF runtime missing ${token}`);
-for (const token of ['<QpfHost>','<QpfMapConnection>','qpf: qpf.snapshot','new QpfController','releaseQpf(); releaseWeather();']) if (!workspace.includes(token)) fail(`main/capture integration missing ${token}`);
+for (const token of ['<QpfHost>','<QpfMapConnection>','useProgramMirror(synoptic.map','<ProgramMirror frame={state.mirror}']) if (!workspace.includes(token)) fail(`main/capture integration missing ${token}`);
 if (!workspace.includes("contentKey.startsWith('current.') || contentKey.startsWith('qpf.')")) fail('QPF scenes do not force the broadcast basemap');
 if (!currentHost.includes("contentKey.startsWith('qpf.')")) fail('weather product selector does not release MAP selection for QPF scenes');
 if (!tauri.includes('https://mapservices.weather.noaa.gov')) fail('Tauri CSP does not allow the WPC QPF provider');

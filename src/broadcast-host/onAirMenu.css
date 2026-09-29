@@ -27,3 +27,8 @@
 .rbrwx-broadcast-workspace .onair-status{order:1;margin-left:auto;color:#dae6f6;font:10px Arial}
 .rbrwx-broadcast-workspace .onair-status-body{position:absolute;top:100%;left:0;right:0;background:#192330f5;border:1px solid #718195;padding:8px;z-index:5;display:grid;gap:5px;overflow-wrap:anywhere;max-height:30vh;overflow:auto}
 .rbrwx-broadcast-workspace .onair-status-body select{max-width:75%;font:11px Arial;margin-left:6px}
+
+.program-mirror{position:absolute;inset:0;background:#000;overflow:hidden}.program-mirror-frame>.operator-map-layer{position:absolute;inset:0}.program-mirror-frame img.maplibregl-canvas{position:absolute;left:0;top:0;max-width:none}.mirror-stalled{position:absolute;bottom:4%;left:20%;right:20%;padding:12px;background:#601b25;color:#fff;text-align:center;font:700 16px Arial;z-index:50}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__trigger{width:22px;height:22px;font-size:5px}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel{top:var(--menu-gap,3px)}
+.session-reset{font:11px Arial;margin-bottom:10px}.session-reset button{font:11px Arial;padding:6px;margin:2px}.session-reset p{line-height:1.4}

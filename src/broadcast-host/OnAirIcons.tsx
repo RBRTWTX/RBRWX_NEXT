@@ -1,6 +1,6 @@
 import type {ButtonHTMLAttributes} from 'react';
 const paths:Record<string,string>={
- title:'M3 5h18v14H3z M7 9h10 M12 9v7',add:'M3 5h12v14H3z M7 9h4 M9 9v6 M19 9v8 M15 13h8',
+ surge:'M2 10q3-5 6 0t6 0 6 0 M2 17q3-5 6 0t6 0 6 0 M12 2v5',title:'M3 5h18v14H3z M7 9h10 M12 9v7',add:'M3 5h12v14H3z M7 9h4 M9 9v6 M19 9v8 M15 13h8',
  refresh:'M20 8a8 8 0 1 0 0 8 M20 3v5h-5',alerts:'M3 6h18v12H3z M6 10h12 M6 14h8',warning:'M12 3 2 21h20z M12 9v5 M12 17v1',
  lightning:'M13 2 5 14h6l-1 8 9-13h-7z',cone:'M5 20 8 6q4-6 8 0l3 14 M5 20q7-5 14 0 M12 7v2 M12 12v2 M12 17v2',
  radar:'M12 12 18 5 M20 7a9 9 0 1 1-5-4 M16 10a5 5 0 1 1-5-3 M11 12h2',sweep:'M12 12V3a9 9 0 1 1-9 9z M12 12l7 5',

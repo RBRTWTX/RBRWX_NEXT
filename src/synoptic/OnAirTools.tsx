@@ -5,7 +5,7 @@ import{useSynoptic}from'./Scene';
 import{SynopticRuntime}from'./runtime';
 import{PRODUCTS,defaults,emptyPack,type PackSnapshot}from'./model';
 import{bearing,cityTimings,destination,type LonLat,type City}from'./tracking';
-export const OVERLAYS=[{id:'warnings',label:'Warnings',product:'warnings'},{id:'lightning',label:'Lightning',product:'glm-flashes'},{id:'cone',label:'Track / cone',product:'tropical-cone'}] as const;
+export const OVERLAYS=[{id:'warnings',label:'Warnings',product:'warnings'},{id:'lightning',label:'Lightning',product:'glm-flashes'},{id:'cone',label:'Track / cone',product:'tropical-cone'},{id:'surge',label:'Storm surge watches / warnings',product:'surge'}] as const;
 type Mode='none'|'pen'|'track';
 export interface Stroke{points:LonLat[];color:string;width:number}
 export interface ToolState{strokes:Stroke[];track:LonLat[];mph:number;time:number}

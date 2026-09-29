@@ -3,7 +3,7 @@
   "release": "qpf-scenes-checkpoint-1",
   "files": {
     "scripts/qpf/verify-provider.mjs": "fcf8b067b5fa5cdcce36eae37c6c7471859948f50298d73b73be80368a800ddc",
-    "scripts/qpf/verify.mjs": "17f67d22a29bbecce83e49271b0f9f40b0f4e254bc12296aed66afac3a430fb7",
+    "scripts/qpf/verify.mjs": "2f2b34b3653b621012315706a51299b3525f0d40b2eccb63ec562d709e2bd81b",
     "src/qpf/Qpf.tsx": "5df07a1dd795e17cf0d3bb67e0dee6da9f04744bf439f8eff2638c9ebd90b9dc",
     "src/qpf/controller.ts": "dd616842afeebed0242ab570a61c39911beadccfd0ff8b59e4bc51302c0357a6",
     "src/qpf/model.ts": "e6dd8cebd40005a17add34e1af8ffa1d08e6c978595c79dc4994653ed3b7f9e9",
