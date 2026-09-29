@@ -1,22 +1,29 @@
-.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide{width:94%;left:3%;right:3%;z-index:40}
-.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel{width:min(960px,100%);max-width:100%;display:flex;flex-wrap:wrap;align-items:start;gap:8px;padding:10px;background:linear-gradient(#343d49f5,#17202ef5);border:1px solid #718195;box-shadow:0 5px 20px #0009;max-height:55vh;overflow:auto}
-.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel button{background:#344256;color:#fff;border:1px solid #718195;border-radius:3px;font-size:12px;white-space:normal;overflow-wrap:normal;min-height:32px;padding:6px 10px}
-.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel .synoptic-playback{display:flex;flex-wrap:wrap;gap:6px;width:auto}
-.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel .wx-weather-playback{flex-wrap:wrap;max-width:100%}
-.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel .onair-toolbar{display:grid;grid-template-columns:repeat(4,minmax(100px,1fr));gap:6px;width:100%;order:2}
-.rbrwx-broadcast-workspace .onair-toolbar>details{position:relative;min-width:0}
-.rbrwx-broadcast-workspace .onair-toolbar summary{padding:9px;border:1px solid #667384;background:#333f51;color:white;font-size:12px;cursor:pointer;min-height:32px;box-sizing:border-box}
-.rbrwx-broadcast-workspace .onair-toolbar button[aria-pressed=true]{background:#17597d;border-color:#7ddeff}
-.rbrwx-broadcast-workspace .onair-submenu{display:grid;gap:6px;padding:8px;background:#142033;border:1px solid #718195}
-.rbrwx-broadcast-workspace .onair-submenu label{display:grid;gap:5px;font-size:12px;color:white}
-.rbrwx-broadcast-workspace .onair-submenu select,.rbrwx-broadcast-workspace .onair-submenu input{width:100%;min-width:0;box-sizing:border-box}
-.rbrwx-broadcast-workspace .onair-submenu small{font-size:11px;color:#c5d9ed;line-height:1.4}
-.rbrwx-broadcast-workspace .onair-status{width:100%;order:3;display:grid;gap:4px;font:11px Arial;color:#d7e5f5;overflow-wrap:anywhere}
-.rbrwx-broadcast-workspace .onair-status label{display:flex;gap:8px}.rbrwx-broadcast-workspace .onair-status select{max-width:80%}
 .onair-drawing{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none}
 .onair-timings{position:absolute;right:3%;top:35%;max-width:34%;padding:10px;background:#15233ee8;color:white;z-index:9;font:13px Arial;pointer-events:none;border-left:4px solid #ffff70}.onair-timings small{display:block;font-size:10px;margin:5px 0}.onair-timings div{margin:5px 0}
-@media(max-width:900px){.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel .onair-toolbar{grid-template-columns:repeat(2,minmax(90px,1fr))}}
-
 .onair-tool-hint{position:absolute;bottom:20%;left:3%;padding:7px;background:#182943ed;color:white;font:12px Arial;z-index:9;pointer-events:none}
 
-.rbrwx-broadcast-workspace .onair-toolbar button:hover{background:#465c77}.rbrwx-broadcast-workspace .onair-toolbar button:disabled{opacity:.45;cursor:not-allowed}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide{width:min(760px,94%);left:3%;right:auto;z-index:40}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel{position:relative;top:3px;width:100%;box-sizing:border-box;max-width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:5px;background:#192330ef;border:1px solid #657489;box-shadow:0 3px 10px #0007;overflow:visible}
+.rbrwx-broadcast-workspace .onair-icon{width:19px;height:19px;flex-shrink:0;pointer-events:none}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .canvas-hidden-menu__panel button,.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide summary{box-sizing:border-box;min-height:28px;padding:3px 5px;border:1px solid #596777;border-radius:2px;background:#303d4d;color:#eef5ff;font:600 10px Arial,sans-serif;cursor:pointer;white-space:nowrap}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide .onair-icon-button,.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide summary{display:flex;align-items:center;justify-content:center;gap:3px}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide summary{list-style:none}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide summary::-webkit-details-marker{display:none}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide button:hover,.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide summary:hover{background:#48617e}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide button:focus-visible,.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide summary:focus-visible{outline:2px solid #85d7ff;outline-offset:1px}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide button[aria-pressed=true],.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide details[open]>summary{background:#125576;border-color:#76d3ff;box-shadow:inset 0 -2px #76d3ff}
+.rbrwx-broadcast-workspace .canvas-hidden-menu.onair-wide button:disabled{opacity:.4;cursor:not-allowed}
+.rbrwx-broadcast-workspace .onair-playback{display:flex;align-items:center;gap:3px;order:0}
+.rbrwx-broadcast-workspace .onair-playback input[type=range]{width:75px;min-width:40px;margin:0 4px}
+.rbrwx-broadcast-workspace .onair-toolbar{display:flex;flex-wrap:wrap;gap:3px;order:2;width:100%}
+.rbrwx-broadcast-workspace .onair-toolbar>.onair-icon-button,.rbrwx-broadcast-workspace .onair-toolbar>details>summary{width:46px;height:39px;flex-direction:column;gap:1px}
+.rbrwx-broadcast-workspace .onair-toolbar span{font-size:9px;line-height:10px}
+.rbrwx-broadcast-workspace .onair-submenu{position:absolute;top:100%;left:0;z-index:4;display:flex;align-items:center;flex-wrap:wrap;gap:5px;width:min(310px,100%);box-sizing:border-box;padding:7px;margin-top:3px;background:#192330f5;border:1px solid #758ba6;box-shadow:0 4px 12px #0009;max-height:35vh;overflow:auto}
+.rbrwx-broadcast-workspace .onair-submenu label{display:flex;align-items:center;gap:5px;color:white;font:11px Arial}
+.rbrwx-broadcast-workspace .onair-submenu select{min-width:0;max-width:230px;font:11px Arial}
+.rbrwx-broadcast-workspace .onair-submenu input{width:54px;box-sizing:border-box}
+.rbrwx-broadcast-workspace .onair-submenu input[type=color]{height:26px;padding:1px}
+.rbrwx-broadcast-workspace .onair-submenu small{width:100%;font:10px Arial;color:#c5d9ed}
+.rbrwx-broadcast-workspace .onair-status{order:1;margin-left:auto;color:#dae6f6;font:10px Arial}
+.rbrwx-broadcast-workspace .onair-status-body{position:absolute;top:100%;left:0;right:0;background:#192330f5;border:1px solid #718195;padding:8px;z-index:5;display:grid;gap:5px;overflow-wrap:anywhere;max-height:30vh;overflow:auto}
+.rbrwx-broadcast-workspace .onair-status-body select{max-width:75%;font:11px Arial;margin-left:6px}

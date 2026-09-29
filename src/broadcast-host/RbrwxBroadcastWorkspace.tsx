@@ -1,4 +1,5 @@
-import {OnAirMenu,useOnAirCommands,BroadcastToolButtons} from './OnAirMenu';
+import{IconButton,ToolIcon}from'./OnAirIcons';
+import {OnAirMenu,useOnAirCommands,BroadcastToolButtons,HiddenPlayback} from './OnAirMenu';
 import {OnAirProvider,LiveOnAirDrawing,OnAirCapture,useOnAirTools,type ToolsSnapshot} from '../synoptic/OnAirTools';
 import {EwxControls,LiveEwxScroll,EwxScroll,useEwxAlerts,type EwxState} from '../current-weather/EwxAlerts';
 import {useGraphics} from '../broadcast-graphics/Graphics';
@@ -42,7 +43,6 @@ import {
   ForecastGraphicSnapshotStage,
   ForecastGraphicProperties,
   ForecastGraphicTools,
-  ForecastGraphicObjectList,
   useForecastGraphics,
   type ForecastGraphicsSnapshot,
 } from './ForecastGraphicsHost';
@@ -160,9 +160,6 @@ function CanvasHiddenMenu({
   onPopout: () => void;
 }) {
   const broadcast = useBroadcast();
-  const weather = useCurrentWeather();
-  const qpf = useQpf();
-  const synoptic = useSynoptic();
   const [open, setOpen] = useState(false);
   const [menuTop,setMenuTop]=useState(120);
   useEffect(()=>{const update=()=>{const stage=document.querySelector('.operator-canvas-stage,.capture-canvas-stage');if(!stage)return;const bounds=stage.getBoundingClientRect(),title=stage.querySelector('.synoptic-title-frame,.wxg-title');setMenuTop(title?Math.min(bounds.height*.45,Math.max(8,title.getBoundingClientRect().bottom-bounds.top+8)):8);};update();const timer=setInterval(update,200);return()=>clearInterval(timer);},[]);
@@ -179,27 +176,18 @@ function CanvasHiddenMenu({
     >RBRTW</button>
     {open && <div className="canvas-hidden-menu__panel" role="group">
       <OnAirMenu onDrawStart={()=>setOpen(false)}/>
-      {synoptic.active ? <SynopticPlayback /> : <>
-      <WeatherPlayback />
-      <div className="canvas-hidden-menu__transport">
-        <button type="button" onClick={broadcast.previous} title="Previous scene">|◀</button>
-        <button type="button" onClick={playing ? broadcast.pause : broadcast.play} disabled={!playing && !broadcast.canPlay} title={playing ? 'Pause rundown' : 'Play rundown'}>{playing ? 'Ⅱ' : '▶'}</button>
-        <button type="button" onClick={broadcast.next} title="Next scene">▶|</button>
-      </div>
-      <button type="button" onClick={() => broadcast.setLoop(!broadcast.state.loop)}>LOOP {broadcast.state.loop ? 'ON' : 'OFF'}</button>
-      <button type="button" onClick={() => void (synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : weather.controller.refresh())}>{qpf.active ? 'REFRESH QPF' : 'REFRESH WEATHER'}</button>
-      </>}
-      {synoptic.active&&<details><summary>Rundown</summary>
-        <div className="canvas-hidden-menu__transport">
-          <button onClick={broadcast.previous} title="Previous scene">|◀</button>
-          <button onClick={playing?broadcast.pause:broadcast.play} disabled={!playing&&!broadcast.canPlay} title={playing?'Pause rundown':'Play rundown'}>{playing?'Ⅱ':'▶'}</button>
-          <button onClick={broadcast.next} title="Next scene">▶|</button>
+      <HiddenPlayback />
+      <details className="onair-rundown"><summary title="Scene rundown controls" aria-label="Scene rundown controls"><ToolIcon name="rundown"/><span>Show</span></summary>
+        <div className="onair-submenu">
+          <IconButton icon="previous" label="Previous scene" onClick={broadcast.previous}/>
+          <IconButton icon={playing?'pause':'play'} label={playing?'Pause rundown':'Play rundown'} disabled={!playing&&!broadcast.canPlay} onClick={playing?broadcast.pause:broadcast.play}/>
+          <IconButton icon="next" label="Next scene" onClick={broadcast.next}/>
+          <IconButton icon="take" label="Take preview" short="Take" disabled={!broadcast.state.previewItemId} onClick={broadcast.takePreview}/>
+          <IconButton icon="loop" label="Toggle show loop" aria-pressed={broadcast.state.loop} onClick={()=>broadcast.setLoop(!broadcast.state.loop)}/>
         </div>
-        <button type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE PREVIEW</button>
-        <button type="button" onClick={()=>broadcast.setLoop(!broadcast.state.loop)}>SHOW LOOP {broadcast.state.loop?'ON':'OFF'}</button>
-      </details>}
-      <button type="button" onClick={onPopout}>POP OUT CANVAS</button>
-      <button type="button" onClick={() => { setOpen(false); onAvailableChange(false); }}>HIDE RBRTW BUTTON</button>
+      </details>
+      <IconButton icon="popout" label="Pop out canvas" onClick={onPopout}/>
+      <IconButton icon="hide" label="Hide RBRTW button" onClick={()=>{setOpen(false);onAvailableChange(false);}}/>
     </div>}
   </div>;
 }
@@ -291,11 +279,6 @@ function ContextDock({
   setHiddenMenuAvailable: (value: boolean) => void;
 }) {
   const broadcast = useBroadcast();
-  const weather = useCurrentWeather();
-  const graphics = useGraphicsSnapshot();
-  const ewx = useEwxAlerts();
-  const tools=useOnAirTools();
-  const onAirCommand=useOnAirCommands();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
@@ -379,17 +362,6 @@ function ContextDock({
       </>}
     </div>
 
-    <div className="operator-object-list">
-      <div className="operator-object-list__heading">OBJECT LIST</div>
-      {forecast.active ? <ForecastGraphicObjectList /> : <>
-        <div className="operator-object-list__row"><span>Scene</span><b>{broadcast.programScene?.title ?? '—'}</b></div>
-        <div className="operator-object-list__row"><span>Weather</span><b>{qpf.active ? qpf.title.toUpperCase() : weather.product.toUpperCase()}</b></div>
-        {graphics.visible.title && <div className="operator-object-list__row"><span>Graphic</span><b>TITLE</b></div>}
-        {graphics.visible.lower && <div className="operator-object-list__row"><span>Graphic</span><b>LOWER THIRD</b></div>}
-        {graphics.visible.ticker && <div className="operator-object-list__row"><span>Graphic</span><b>TICKER</b></div>}
-        {(Object.keys(visibility) as BroadcastLayerGroup[]).filter(group => visibility[group]).map(group => <div key={group} className="operator-object-list__row"><span>Map</span><b>{group.toUpperCase()}</b></div>)}
-      </>}
-    </div>
   </aside>;
 }
 
@@ -629,14 +601,14 @@ function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean 
     <button className="canvas-hidden-menu__trigger" type="button" aria-label="Open RBRTW hidden canvas menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>RBRTW</button>
     {open && <div className="canvas-hidden-menu__panel" role="group">
       <BroadcastToolButtons command={action} ewx={ewx} draw={false}/>
-      <div className="canvas-hidden-menu__transport">
-        <button type="button" onClick={() => action('previous')}>|◀</button>
-        <button type="button" onClick={() => action('play-pause')}>▶/Ⅱ</button>
-        <button type="button" onClick={() => action('next')}>▶|</button>
+      <div className="onair-playback" aria-label="Hidden menu playback">
+        <IconButton icon="previous" label="Previous weather frame" onClick={()=>action('previous')}/>
+        <IconButton icon="play" label="Play / pause weather" onClick={()=>action('play-pause')}/>
+        <IconButton icon="next" label="Next weather frame" onClick={()=>action('next')}/>
+        <IconButton icon="loop" label="Toggle playback loop" onClick={()=>action('loop')}/>
+        <IconButton icon="refresh" label="Refresh weather" onClick={()=>action('refresh')}/>
       </div>
-      <button type="button" onClick={() => action('loop')}>TOGGLE LOOP</button>
-      <button type="button" onClick={() => action('refresh')}>REFRESH WEATHER</button>
-      <button type="button" onClick={() => { setOpen(false); action('hide-menu'); }}>HIDE RBRTW BUTTON</button>
+      <IconButton icon="hide" label="Hide RBRTW button" onClick={()=>{setOpen(false);action('hide-menu');}}/>
     </div>}
   </div>;
 }
