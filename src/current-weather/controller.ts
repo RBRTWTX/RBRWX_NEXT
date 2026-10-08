@@ -222,7 +222,7 @@ export class CurrentWeatherController {
   private observations = new ObservationsClient();
   snapshot = initialSnapshot();
 
-  constructor(private notify: (snapshot: Snapshot) => void, private factory = loadManager) { }
+  constructor(private notify: (snapshot: Snapshot) => void, private factory = loadManager, private ownsObservations = true) { }
   private emit(patch: Partial<Snapshot>) { this.snapshot = { ...this.snapshot, ...patch }; this.notify(this.snapshot); }
   connect(map: WeatherMap, anchor: string): () => void { this.map = map; this.anchor = anchor; void this.start(); return () => { this.clear(); this.map = null; }; }
 
@@ -251,8 +251,8 @@ export class CurrentWeatherController {
     this.interval = null; this.refreshInterval = null; this.moveTimer = null;
     this.map?.off('moveend', this.move);
     this.manager?.destroy(); this.manager = null;
-    for (const id of [observationLayerId, currentFieldLayerId]) if (this.map?.getLayer(id)) this.map.removeLayer(id);
-    for (const id of [observationSourceId, currentFieldSourceId]) if (this.map?.getSource(id)) this.map.removeSource(id);
+    if (this.ownsObservations) for (const id of [observationLayerId, currentFieldLayerId]) if (this.map?.getLayer(id)) this.map.removeLayer(id);
+    if (this.ownsObservations) for (const id of [observationSourceId, currentFieldSourceId]) if (this.map?.getSource(id)) this.map.removeSource(id);
     this.requested = null; this.received = 0; this.networkFailed = false; this.refreshing = false; this.paletteFallback = false;
   }
 

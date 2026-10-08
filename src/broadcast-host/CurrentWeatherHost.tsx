@@ -14,10 +14,8 @@ export function productForContent(contentKey: string | undefined): Product {
 
 export function CurrentWeatherHost({ children }: { children: ReactNode }) {
   const { programScene, state } = useBroadcast();
-  const graphic = Boolean(programScene?.contentKey.startsWith('graphic.'));
-  const held = useRef<{ sceneId: string; product: Product }>({ sceneId: 'startup', product: 'map' });
-  if (!graphic) held.current = { sceneId: state.programItemId ?? 'startup', product: productForContent(programScene?.contentKey) };
-  return <CurrentWeatherProvider sceneId={held.current.sceneId} product={held.current.product}><EwxProvider>{children}</EwxProvider></CurrentWeatherProvider>;
+  const product = productForContent(programScene?.contentKey);
+  return <CurrentWeatherProvider sceneId={state.programItemId ?? 'startup'} product={product === 'radar' ? 'map' : product}><EwxProvider>{children}</EwxProvider></CurrentWeatherProvider>;
 }
 
 export function CurrentProductSelector() {

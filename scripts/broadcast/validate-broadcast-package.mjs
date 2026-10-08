@@ -109,7 +109,7 @@ for (const relative of synopticFiles) {
       continue;
     }
     const resolved = normalizeResolvedImport(relative, spec);
-    if (resolved && !isWithin(resolved,'src/synoptic') && resolved !== 'src/broadcast/index.ts' && !isWithin(resolved,'src/broadcast') && !resolved.startsWith('src/current-weather/public-imagery') && !['src/broadcast-graphics/BarLibrary','src/broadcast-graphics/barStyles','src/broadcast-graphics/ResizeBox'].includes(resolved)) fail(`${relative} imports outside its module boundary via ${spec}.`);
+    if (resolved && !isWithin(resolved,'src/synoptic') && resolved !== 'src/broadcast/index.ts' && !isWithin(resolved,'src/broadcast') && !resolved.startsWith('src/current-weather/public-imagery') && !['src/broadcast-graphics/BarLibrary','src/broadcast-graphics/barStyles','src/broadcast-graphics/ResizeBox','src/broadcast-graphics/EditableText'].includes(resolved)) fail(`${relative} imports outside its module boundary via ${spec}.`);
   }
 }
 

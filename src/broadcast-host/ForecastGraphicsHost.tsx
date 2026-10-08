@@ -15,7 +15,7 @@ export { isForecastGraphicContent } from '../forecast-graphics/model';
 export function ForecastGraphicsHost({ children }: { children: ReactNode }) {
   const { programScene, state } = useBroadcast();
   return <ForecastGraphicsProvider
-    sceneId={programScene ? (state.programItemId ?? programScene.id) : null}
+    sceneId={programScene ? `${programScene.id}:${state.programItemId ?? 'direct'}` : null}
     contentKey={programScene?.contentKey}
     title={programScene?.title ?? 'Graphic Scene'}
   >{children}</ForecastGraphicsProvider>;

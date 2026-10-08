@@ -179,7 +179,7 @@ fn request_operator_action(
     action: String,
 ) -> Result<(), String> {
     const ALLOWED: &[&str] = &["previous", "play-pause", "next", "loop", "refresh", "hide-menu",
-        "bar-add", "bar-refresh", "ewx-toggle", "ewx-refresh", "sweeps", "pen", "track", "pen-undo", "pen-clear", "track-clear", "layers-off", "overlays-refresh",
+        "radar-toggle", "radar-off", "bar-add", "bar-refresh", "ewx-toggle", "ewx-refresh", "sweeps", "pen", "track", "pen-undo", "pen-clear", "track-clear", "layers-off", "overlays-refresh",
         "overlay:warnings", "overlay:lightning", "overlay:cone", "overlay:surge", "radar:reflectivity", "radar:velocity", "radar:hydro",
         "satellite:longwave", "satellite:shortwave", "satellite:visible", "satellite:water_vapor", "satellite:snow_ice",
         "mrms:mrms-reflectivity", "mrms:mrms-composite", "mrms:mrms-qpe1", "mrms:mrms-qpe24", "mrms:mrms-rate", "mrms:mrms-type", "mrms:mrms-tops", "mrms:mrms-hail", "mrms:mrms-shear", "mrms:mrms-flood"];

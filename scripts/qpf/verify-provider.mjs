@@ -1,6 +1,10 @@
+import {createRequire} from 'node:module';
 import { readFile } from 'node:fs/promises';
 import { fetchWithCors, providerOrigins } from '../provider-http.mjs';
 
+const require=createRequire(import.meta.url),ts=require('../broadcast/vendor/typescript/typescript.cjs');
+async function load(file,deps={}){const exports={};const code=ts.transpileModule(await readFile(new URL('../../'+file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;new Function('exports','require',code)(exports,id=>deps[id]??require(id));return exports;}
+const {fetchCompleteQpf}=await load('src/qpf/controller.ts',{'./model':await load('src/qpf/model.ts')});
 const SERVICE_ROOT = 'https://mapservices.weather.noaa.gov/vector/rest/services/precip/wpc_qpf/MapServer';
 const expectedLayers = [
   [1, 'QPF 24 Hour Day 1'],
@@ -46,12 +50,12 @@ for (const [layerId, expectedName] of expectedLayers) {
     where: 'qpf > 0',
     outFields: 'product,valid_time,qpf,units,issue_time,start_time,end_time',
     returnGeometry: 'true',
-    resultRecordCount: '1',
     outSR: '4326',
     geometryPrecision: '4',
     f: 'geojson',
   });
-  const sample = await json(`WPC QPF layer ${layerId} GeoJSON`, `${SERVICE_ROOT}/${layerId}/query?${params}`);
+  const sample = await fetchCompleteQpf(`${SERVICE_ROOT}/${layerId}/query`, params, AbortSignal.timeout(180000), url=>fetchWithCors(`WPC QPF layer ${layerId} complete download`,String(url),'application/json, application/geo+json',origins));
+  console.log(`  Layer ${layerId}: ${sample.features.length} complete features`);
   if (sample.type !== 'FeatureCollection' || !Array.isArray(sample.features) || sample.features.length < 1) throw new Error(`QPF provider: layer ${layerId} GeoJSON query returned no forecast feature.`);
   const feature = sample.features[0];
   if (!['Polygon', 'MultiPolygon'].includes(feature?.geometry?.type)) throw new Error(`QPF provider: layer ${layerId} sample geometry is not Polygon/MultiPolygon.`);

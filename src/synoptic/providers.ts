@@ -61,7 +61,7 @@ export async function vectorPayload(p:Product,signal:AbortSignal):Promise<Payloa
   const features=await limitedMap(active,async f=>{
    const a=f.properties??{};let geometry=f.geometry;
    if(!geometry && Array.isArray(a.affectedZones)){
-    const zones=await limitedMap<string,any>(a.affectedZones,async u=>{if(!u.startsWith('https://api.weather.gov/zones/'))throw Error('Invalid alert zone');if(!zoneCache.has(u))zoneCache.set(u,json(u,signal).then(z=>z.geometry));return zoneCache.get(u)!;});
+    const zones=await limitedMap<string,any>(a.affectedZones,async u=>{if(!u.startsWith('https://api.weather.gov/zones/'))throw Error('Invalid alert zone');if(!zoneCache.has(u))zoneCache.set(u,json(u,signal).then(z=>z.geometry).catch(error=>{zoneCache.delete(u);throw error;}));return zoneCache.get(u)!;});
     const polygons=zones.flatMap(g=>g?.type==='Polygon'?[g.coordinates]:g?.type==='MultiPolygon'?g.coordinates:[]);if(polygons.length)geometry={type:'MultiPolygon',coordinates:polygons};
    }
    const event=String(a.event??'Alert'),color=event.includes('Tornado Warning')?'#ff2020':event.includes('Severe Thunderstorm Warning')?'#ffdb00':event.includes('Flash Flood')?'#21d66b':event==='Tornado Watch'?'#ffff00':event==='Severe Thunderstorm Watch'?'#ff8080':event==='Storm Surge Warning'?'#b524f7':event==='Storm Surge Watch'?'#db7ff7':event.includes('Watch')?'#ff932b':'#d050d0';

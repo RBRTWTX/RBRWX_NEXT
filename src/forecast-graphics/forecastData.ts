@@ -19,9 +19,11 @@ function asNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function quantity(raw: unknown): number | null {
+export function quantity(raw: unknown, unit: string): number | null {
   if (!raw || typeof raw !== 'object') return null;
-  return asNumber((raw as { value?: unknown }).value);
+  const q=raw as {value?:unknown;unitCode?:unknown;qualityControl?:unknown};
+  if(q.unitCode!==`wmoUnit:${unit}`||['X','Z','B'].includes(String(q.qualityControl??'')))return null;
+  return asNumber(q.value);
 }
 
 function cToF(value: number | null): number | null {
@@ -34,7 +36,7 @@ function kmhToMph(value: number | null): number | null {
 
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, {
-    signal,
+    signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
     cache: 'no-store',
     headers: { Accept: 'application/geo+json, application/json;q=0.9' },
   });
@@ -95,13 +97,15 @@ async function loadObservation(stationsUrl: string | undefined, signal?: AbortSi
     if (!stationUrl) return null;
     const latest = await getJson<{ properties?: Record<string, unknown> }>(`${stationUrl}/observations/latest`, signal);
     const p = latest.properties ?? {};
+    const time=Date.parse(String(p.timestamp??''));
+    if(!Number.isFinite(time)||Date.now()-time>90*60000||time>Date.now()+5*60000)return null;
     return {
-      temperatureF: cToF(quantity(p.temperature)),
-      humidity: quantity(p.relativeHumidity),
-      windMph: kmhToMph(quantity(p.windSpeed)),
+      temperatureF: cToF(quantity(p.temperature,'degC')),
+      humidity: quantity(p.relativeHumidity,'percent'),
+      windMph: kmhToMph(quantity(p.windSpeed,'km_h-1')),
       windDirection: typeof p.windDirection === 'object' && p.windDirection !== null
         ? (() => {
-            const degrees = quantity(p.windDirection);
+            const degrees = quantity(p.windDirection,'degree_(angle)');
             if (degrees === null) return '';
             const dirs = ['N','NE','E','SE','S','SW','W','NW'];
             return dirs[Math.round(degrees / 45) % 8];
@@ -121,8 +125,8 @@ export async function loadForecastGraphicsData(signal?: AbortSignal): Promise<Fo
   if (!properties.forecast || !properties.forecastHourly) throw new Error('NWS point metadata did not provide forecast endpoints.');
 
   const [forecastResponse, hourlyResponse, observation] = await Promise.all([
-    getJson<{ properties?: { periods?: unknown } }>(properties.forecast, signal),
-    getJson<{ properties?: { periods?: unknown } }>(properties.forecastHourly, signal),
+    getJson<{ properties?: { periods?: unknown; updateTime?:string; generatedAt?:string } }>(properties.forecast, signal),
+    getJson<{ properties?: { periods?: unknown; updateTime?:string; generatedAt?:string } }>(properties.forecastHourly, signal),
     loadObservation(properties.observationStations, signal),
   ]);
 
@@ -132,5 +136,5 @@ export async function loadForecastGraphicsData(signal?: AbortSignal): Promise<Fo
 
   const relative = properties.relativeLocation?.properties;
   const locationName = [relative?.city, relative?.state].filter(Boolean).join(', ') || 'San Antonio, TX';
-  return { locationName, periods, hourly, observation, updatedAt: Date.now() };
+  return { locationName, periods, hourly, observation, updatedAt: Date.parse(forecastResponse.properties?.updateTime??forecastResponse.properties?.generatedAt??'') };
 }

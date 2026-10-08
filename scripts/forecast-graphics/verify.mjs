@@ -49,13 +49,23 @@ try {
     hourly: Array.from({length:12},(_,i)=>({ startTime:`2026-09-26T${String(10+i).padStart(2,'0')}:00:00-05:00`, temperature:80+i, temperatureUnit:'F', probabilityOfPrecipitation:i, windSpeed:'8 mph', windDirection:'S', shortForecast:'Sunny' })),
   };
   assert.equal(model.resolveAutoText('today.temperature', sample), '91°');
+  assert.equal(model.resolveAutoText('today.temperature',{...sample,periods:[{...sample.periods[0],temperature:20,temperatureUnit:'C'}]}),'68°');
+  assert.equal(model.resolveAutoText('today.pop',sample),'PRECIP 20%');
+  assert.equal(model.resolveAutoText('obs.condition',{...sample,observation:null}),'OBSERVATION UNAVAILABLE');
+  assert.equal(model.resolveAutoText('obs.icon',{...sample,observation:null}),'—');
+  fs.writeFileSync(path.join(temp,'forecastData.cjs'),ts.transpileModule(read('src/forecast-graphics/forecastData.ts'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);
+  const {quantity}=require(path.join(temp,'forecastData.cjs'));
+  assert.equal(quantity({value:20,unitCode:'wmoUnit:degC',qualityControl:'V'},'degC'),20);
+  assert.equal(quantity({value:20,unitCode:'wmoUnit:degF',qualityControl:'V'},'degC'),null);
+  assert.equal(quantity({value:20,unitCode:'wmoUnit:degC',qualityControl:'X'},'degC'),null);
   const auto = { id:'x', label:'x', kind:'text', style:'temperature', x:0,y:0,w:100,h:50,z:1,scale:1,autoKey:'today.temperature' };
   assert.equal(model.displayText(auto, sample), '91°');
   assert.equal(model.displayText({ ...auto, textOverride:'93°' }, sample), '93°', 'Direct edit must override only the displayed scene object');
 
   const editor = read('src/forecast-graphics/ForecastGraphics.tsx');
   for (const token of ['contentEditable={editing}', "event.key !== 'Delete'", "event.key !== 'Backspace'", 'forecast-resize-handle', "mode: 'move' | 'scale'", '.PNG / .SVG LIBRARY', 'TEXT BOX', 'ICON', 'PANEL', 'CIRCLE', "invoke<GraphicAssetEntry[]>('list_graphic_assets')", "invoke<string>('read_graphic_asset'"]) assert.match(editor, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')), token);
-  assert.doesNotMatch(editor, /type=["']range["']/, 'Graphic object scaling must not use menu sliders');
+  assert.doesNotMatch(editor.slice(editor.indexOf('export function ForecastGraphicProperties()')), /type=["']range["']/, 'Right-side properties must not contain text sizing sliders');
+  assert.match(editor,/forecast-inline-controls/,'Sizing controls belong inside the displayed object');
   assert.match(editor, /transform:\s*`scale\(\$\{item\.scale \?\? 1\}\)`/, 'Corner drag must scale the complete object, including text');
   assert.match(editor, /graphics\.updateObject\(item\.id, \{ scale: nextScale \}\)/, 'Scale handle must write object scale');
 
@@ -67,7 +77,8 @@ try {
   for (const token of ['ForecastGraphicsHost','ForecastGraphicEditorStage','ProgramMirror','useProgramMirror(synoptic.map','operator-map-layer--behind-graphic']) assert.ok(host.includes(token), token);
   const currentHost = read('src/broadcast-host/CurrentWeatherHost.tsx');
   assert.match(currentHost, /contentKey\.startsWith\('graphic\.'\)/);
-  assert.match(currentHost, /held\.current/, 'Weather state must remain mounted while a non-map scene is on Program');
+  assert.match(currentHost, /<CurrentWeatherProvider/, 'Current weather provider stays mounted across scene changes');
+  assert.match(host, /<RadarOverlayProvider>/, 'Independent radar remains available on graphic scenes');
 
   const catalog = read('src/broadcast-host/sceneCatalog.ts');
   for (const [content] of templates) assert.ok(catalog.includes(`contentKey: '${content}'`), content);

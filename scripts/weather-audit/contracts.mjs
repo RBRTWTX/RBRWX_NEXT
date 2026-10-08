@@ -134,7 +134,7 @@ export function runContractAudit(root = DEFAULT_ROOT, { print = true } = {}) {
     "outFields: 'product,valid_time,qpf,units,issue_time,start_time,end_time'", "f: 'geojson'",
   ], 'QPF ingestion requests authoritative WPC GeoJSON fields and validity metadata');
 
-  if (qpfRuntime && !qpfRuntime.includes('setInterval')) {
+  if (qpfController && !qpfController.includes('setInterval')) {
     findings.push(finding('QPF-AUTO-REFRESH', 'WARN', 'P1', 'WPC QPF', 'QPF does not automatically poll for a newer WPC issuance while a scene remains open; refresh is manual.'));
   } else {
     findings.push(finding('QPF-AUTO-REFRESH', 'PASS', '—', 'WPC QPF', 'QPF automatic refresh is present.'));

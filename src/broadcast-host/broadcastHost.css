@@ -171,3 +171,6 @@
 .rbrwx-broadcast-workspace .operator-property-field select,
 .rbrwx-broadcast-workspace .operator-property-field input { width: 100%; min-width: 0; height: 27px; padding: 0 6px; color: #e0e3e5; background: #252729; border: 1px solid #565b5e; font: 8px Arial,sans-serif; }
 .rbrwx-broadcast-workspace .operator-property-field input:disabled { opacity: .45; }
+
+.rbrwx-broadcast-workspace .operator-map-layer.operator-map-layer--graphic-radar{z-index:9;pointer-events:none;background:transparent}
+.rbrwx-broadcast-workspace .operator-map-layer--graphic-radar .maplibregl-map{background:transparent}

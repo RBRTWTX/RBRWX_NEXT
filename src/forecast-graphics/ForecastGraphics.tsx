@@ -55,6 +55,7 @@ interface ForecastGraphicsModel {
   addShape: (circle?: boolean) => void;
   addAsset: (asset: GraphicAssetEntry) => void;
   resetScene: () => void;
+  showTitle: (refresh?:boolean) => void;
   refreshData: () => void;
   refreshAssets: () => void;
 }
@@ -226,6 +227,16 @@ export function ForecastGraphicsProvider({
     updateObject(selected.id, { z: Math.min(0, ...objects.map(item => item.z)) - 1 });
   }, [objects, selected, updateObject]);
 
+  const showTitle=useCallback((refresh=false)=>{
+    if(!template)return;
+    mutateActive(items=>{
+      const defaults=freshSceneObjects(template).filter(item=>item.id.startsWith('header-'));
+      if(!defaults.some(item=>item.id==='header-title'))defaults.push({id:'header-title',label:'Scene title',kind:'text',style:'headline',x:108,y:80,w:900,h:80,z:6,text:title});
+      const missing=defaults.filter(item=>!items.some(old=>old.id===item.id));
+      return [...items.map(item=>refresh&&item.id==='header-title'?{...item,text:title,textOverride:undefined}:item),...missing];
+    });
+  },[template,title,mutateActive]);
+
   const resetScene = useCallback(() => {
     if (!active || !sceneId || !template) return;
     setScenes(current => ({ ...current, [sceneId]: { template, objects: freshSceneObjects(template) } }));
@@ -272,9 +283,10 @@ export function ForecastGraphicsProvider({
     addShape,
     addAsset,
     resetScene,
+    showTitle,
     refreshData: loadData,
     refreshAssets,
-  }), [active, addAsset, addIcon, addShape, addText, assets, bringSelectedFront, data, deleteObject, duplicateSelected, loadData, message, objects, sceneId, selectedId, sendSelectedBack, snapshot, status, template, title, updateObject, resetScene, refreshAssets]);
+  }), [active, addAsset, addIcon, addShape, addText, assets, bringSelectedFront, data, deleteObject, duplicateSelected, loadData, message, objects, sceneId, selectedId, sendSelectedBack, snapshot, status, template, title, updateObject, resetScene, showTitle, refreshAssets]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
@@ -338,7 +350,7 @@ function ObjectBody({ item, value, editing, beginEdit, commit, cancelEdit }: {
     }
   }, [editing, value]);
 
-  useLayoutEffect(()=>{const node=ref.current;if(!node||editing)return;const fit=()=>{node.style.removeProperty('font-size');node.style.alignContent='center';node.style.lineHeight='1.16';let size=parseFloat(getComputedStyle(node).fontSize);for(let i=0;i<45&&(node.scrollHeight>node.clientHeight+1||node.scrollWidth>node.clientWidth+1);i++){size*=.94;node.style.fontSize=`${size}px`;}node.style.alignContent='center';};fit();const observer=new ResizeObserver(fit);observer.observe(node);return()=>observer.disconnect();},[value,item.w,item.h,item.style,editing]);
+  useLayoutEffect(()=>{const node=ref.current;if(!node||editing)return;const fit=()=>{node.style.removeProperty('font-size');node.style.alignContent='center';node.style.lineHeight='1.16';let size=parseFloat(getComputedStyle(node).fontSize)*(item.fontScale??1);node.style.fontSize=`${size}px`;for(let i=0;i<45&&(node.scrollHeight>node.clientHeight+1||node.scrollWidth>node.clientWidth+1);i++){size*=.94;node.style.fontSize=`${size}px`;}node.style.alignContent='center';};fit();const observer=new ResizeObserver(fit);observer.observe(node);return()=>observer.disconnect();},[value,item.w,item.h,item.style,item.fontScale,editing]);
   if (item.kind === 'asset' && item.assetPath) return <AssetImage relativePath={item.assetPath} />;
   if (item.kind === 'shape') return null;
 
@@ -379,13 +391,14 @@ function ObjectBody({ item, value, editing, beginEdit, commit, cancelEdit }: {
 function EditableObject({ item, scale }: { item: ForecastGraphicObject; scale: number }) {
   const graphics = useForecastGraphics();
   const selected = graphics.selectedId === item.id;
+  const [controls,setControls]=useState(false);
   const [editing, setEditing] = useState(false);
   const cancelled = useRef(false);
   const gesture = useRef<{ pointerId: number; mode: 'move' | 'scale'; startX: number; startY: number; start: ForecastGraphicObject } | null>(null);
   const value = displayText(item, graphics.data);
 
   const beginGesture = (event: PointerEvent<HTMLDivElement>, mode: 'move' | 'scale') => {
-    if (event.button !== 0 || editing) return;
+    if (event.button !== 0 || editing || (event.target as HTMLElement).closest('.forecast-inline-controls')) return;
     event.preventDefault();
     event.stopPropagation();
     graphics.select(item.id);
@@ -421,6 +434,7 @@ function EditableObject({ item, scale }: { item: ForecastGraphicObject; scale: n
 
   return <div
     className={`forecast-object forecast-object--${item.kind} forecast-style--${item.style}${selected ? ' forecast-object--selected' : ''}`}
+    onContextMenu={e=>{e.preventDefault();e.stopPropagation();setControls(v=>!v);}}
     data-object-id={item.id}
     style={{ left: item.x, top: item.y, width: item.w, height: item.h, zIndex: item.z, transform: `scale(${item.scale ?? 1})` }}
     onPointerDown={event => beginGesture(event, 'move')}
@@ -440,6 +454,12 @@ function EditableObject({ item, scale }: { item: ForecastGraphicObject; scale: n
         setEditing(false);
       }}
     />
+    {controls&&<div className="wx-inline-controls forecast-inline-controls" style={item.y>600?{top:'auto',bottom:0}:undefined} onPointerDown={e=>e.stopPropagation()} onDoubleClick={e=>e.stopPropagation()} onKeyDown={e=>{e.stopPropagation();if(e.key==='Escape')setControls(false);}}>
+      <label>Text size<input aria-label={`${item.label} text size`} type="range" min="25" max="400" value={Math.round((item.fontScale??1)*100)} onChange={e=>graphics.updateObject(item.id,{fontScale:Number(e.target.value)/100})}/></label>
+      <label>Width<input aria-label={`${item.label} width`} type="range" min="40" max={Math.max(40,(1920-item.x)/(item.scale??1))} value={item.w} onChange={e=>graphics.updateObject(item.id,{w:Number(e.target.value)})}/></label>
+      <label>Height<input aria-label={`${item.label} height`} type="range" min="24" max={Math.max(24,(1080-item.y)/(item.scale??1))} value={item.h} onChange={e=>graphics.updateObject(item.id,{h:Number(e.target.value)})}/></label>
+      <button onClick={()=>setControls(false)}>Done</button>
+    </div>}
     {selected && !editing && <div
       className="forecast-resize-handle"
       title="Drag to scale"

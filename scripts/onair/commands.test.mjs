@@ -1,0 +1,22 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import{createRequire}from'node:module';
+const require=createRequire(import.meta.url),ts=require('../broadcast/vendor/typescript/typescript.cjs');
+const read=file=>fs.readFileSync(new URL('../../'+file,import.meta.url),'utf8');
+function commands({forecastActive=false,synopticActive=true}={}){
+ const calls=[];const record=name=>(...args)=>calls.push([name,...args]);
+ const radar={enabled:false,options:{sweepsEnabled:false},toggle:record('radar.toggle'),setEnabled:record('radar.enabled'),edit:record('radar.edit')};
+ const qpf={active:true,setEnabled:record('qpf.enabled')};
+ const forecast={active:forecastActive,showTitle:record('forecast.title')};
+ const synoptic={active:synopticActive,setProduct:record('synoptic.product'),edit:record('synoptic.edit'),snapshot:{settings:{textOverrides:{title:'old',time:'old',subtitle:'retain'}}}};
+ const weather={setProduct:record('weather.product'),edit:record('weather.edit')};
+ const tools={enabled:{warnings:true,surge:false},mode:'none',snapshot:{objects:{strokes:[1,2]}},toggle:record('overlay.toggle'),edit:record('tools.edit'),refresh:record('tools.refresh'),setMode:record('tools.mode'),setColor:record('tools.color')};
+ const graphics={visible:{title:false},edit:record('graphics.edit'),toggle:record('graphics.toggle')};
+ const ewx={state:{enabled:false},edit:record('ewx.edit'),refresh:record('ewx.refresh')};
+ const mocks={'./RadarOverlay':{useRadarOverlay:()=>radar},'./ForecastGraphicsHost':{useForecastGraphics:()=>forecast},'./QpfHost':{useQpf:()=>qpf},'../current-weather/CurrentWeather':{useCurrentWeather:()=>weather},'../synoptic/Scene':{useSynoptic:()=>synoptic},'../synoptic/OnAirTools':{useOnAirTools:()=>tools,OVERLAYS:[{id:'warnings'},{id:'surge'}]},'../broadcast-graphics/Graphics':{useGraphics:()=>graphics},'../current-weather/EwxAlerts':{useEwxAlerts:()=>ewx},'../synoptic/model':{PRODUCTS:[{id:'mrms-qpe1',family:'mrms'}]}};
+ const exports={};new Function('exports','require',ts.transpileModule(read('src/broadcast-host/OnAirMenu.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText)(exports,id=>mocks[id]??(id.startsWith('.')?{}:require(id)));
+ return {dispatch:exports.useOnAirCommands(),calls};
+}
+test('radar choices preserve QPF, synoptic, observations, satellite and graphic scene state',()=>{for(const forecastActive of [true,false]){const {dispatch,calls}=commands({forecastActive});for(const field of ['reflectivity','velocity','hydro']){calls.length=0;dispatch('radar:'+field);assert.deepEqual(calls,[['radar.enabled',true],['radar.edit',{radarField:field,mrmsEnabled:false}]]);}calls.length=0;dispatch('radar-toggle');dispatch('radar-off');assert.deepEqual(calls,[['radar.toggle'],['radar.enabled',false]]);}});
+test('title refresh targets each visible scene renderer',()=>{let c=commands({forecastActive:true});c.dispatch('bar-refresh');assert.deepEqual(c.calls,[['forecast.title',true]]);c=commands();c.dispatch('bar-refresh');assert.deepEqual(c.calls,[['synoptic.edit',{titleVisible:true,title:'',textOverrides:{subtitle:'retain'}}]]);c=commands({synopticActive:false});c.dispatch('bar-refresh');assert.deepEqual(c.calls,[['graphics.edit',{manual:false}],['graphics.toggle','title']]);});
+test('weather off clears QPF, radar and enabled hazard overlays',()=>{const {dispatch,calls}=commands();dispatch('layers-off');assert.deepEqual(calls,[['radar.enabled',false],['qpf.enabled',false],['overlay.toggle','warnings'],['weather.product','map'],['synoptic.product',null]]);});
+test('sweep, alert, drawing, tracking and product menu commands have handlers',()=>{const {dispatch,calls}=commands();for(const command of ['sweeps','ewx-toggle','ewx-refresh','pen','track','pen-undo','pen-clear','track-clear','speed:40','color:#123abc','overlay:surge','satellite:visible','mrms:mrms-qpe1','overlays-refresh'])assert.equal(dispatch(command),true,command);assert.ok(calls.some(c=>c[0]==='radar.edit'));assert.ok(calls.some(c=>c[0]==='tools.refresh'));assert.equal(dispatch('not-a-command'),false);});
+test('native popout bridge accepts independent radar commands and mirror strips editing controls',()=>{const native=read('src-tauri/src/lib.rs'),mirror=read('src/broadcast-host/ProgramMirror.tsx');for(const command of ['radar-toggle','radar-off'])assert.ok(native.includes('"'+command+'"'));assert.ok(mirror.includes('.wx-inline-controls'));assert.ok(mirror.includes('.forecast-inline-controls'));});

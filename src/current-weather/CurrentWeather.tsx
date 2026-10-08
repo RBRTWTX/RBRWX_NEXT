@@ -1,3 +1,4 @@
+import {useRadarOverlay} from '../broadcast-host/RadarOverlay';
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Map as WeatherMap } from 'maplibre-gl';
 import { CurrentWeatherController } from './controller';
@@ -24,7 +25,8 @@ export function WeatherMapConnection({ children }: { children: (connect: (map: W
 const shortRadarId = (id: string) => id.startsWith('K') && id.length === 4 ? id.slice(1) : id;
 
 export function WeatherControls() {
-  const { product, snapshot, options, edit, controller } = useCurrentWeather();
+  const base=useCurrentWeather(),radar=useRadarOverlay();
+  const { product, snapshot, options, edit, controller } = radar.enabled?{...radar,product:'radar' as const}:base;
   if (product === 'map') return null;
   return <section className="wx-current-controls" aria-label="Current weather controls">
     {product === 'observations' && <>
@@ -72,7 +74,8 @@ export function WeatherControls() {
 }
 
 export function WeatherPlayback() {
-  const { product, snapshot, options, edit, controller } = useCurrentWeather(); if (product !== 'radar' && product !== 'satellite') return null;
+  const base=useCurrentWeather(),radar=useRadarOverlay();
+  const { product, snapshot, options, edit, controller } = radar.enabled?{...radar,product:'radar' as const}:base; if (product !== 'radar' && product !== 'satellite') return null;
   const disabled = snapshot.times.length < 2;
   return <div className="wx-weather-playback" aria-label="Weather imagery playback">
     <button type="button" aria-label="Previous weather frame" disabled={disabled} onClick={() => controller.step(-1)}>Previous</button>

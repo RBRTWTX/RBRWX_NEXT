@@ -35,6 +35,7 @@ export interface ForecastGraphicObject {
   h: number;
   z: number;
   scale?: number;
+  fontScale?: number;
   autoKey?: string;
   text?: string;
   textOverride?: string;
@@ -323,6 +324,11 @@ function asDegrees(value: number | null | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${Math.round(value)}°` : '—';
 }
 
+export function temperatureF(period: {temperature:number;temperatureUnit:string} | undefined): number | null {
+  if(!period||!Number.isFinite(period.temperature))return null;
+  return period.temperatureUnit==='F'?period.temperature:period.temperatureUnit==='C'?period.temperature*9/5+32:null;
+}
+
 function percent(value: number | null | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${Math.round(value)}%` : '—';
 }
@@ -360,8 +366,8 @@ function dailySummaries(data: ForecastGraphicsData | null): DailySummary[] {
   }
   return [...buckets.values()].slice(0, 7).map(bucket => ({
     name: bucket.date.toLocaleDateString([], { weekday: 'short' }).toUpperCase(),
-    high: bucket.day?.temperature ?? null,
-    low: bucket.night?.temperature ?? null,
+    high: temperatureF(bucket.day),
+    low: temperatureF(bucket.night),
     pop: Math.max(bucket.day?.probabilityOfPrecipitation ?? 0, bucket.night?.probabilityOfPrecipitation ?? 0),
     condition: bucket.day?.shortForecast ?? bucket.night?.shortForecast ?? 'Forecast unavailable',
   }));
@@ -383,9 +389,9 @@ function hourlyForPlanner(data: ForecastGraphicsData | null, index: number): Nws
 function formatPeriodValue(period: NwsForecastPeriod | null, field: string): string {
   if (!period) return '—';
   if (field === 'name') return period.name.toUpperCase();
-  if (field === 'temperature') return asDegrees(period.temperature);
+  if (field === 'temperature') return asDegrees(temperatureF(period));
   if (field === 'condition') return period.shortForecast.toUpperCase();
-  if (field === 'pop') return `RAIN ${percent(period.probabilityOfPrecipitation)}`;
+  if (field === 'pop') return `PRECIP ${percent(period.probabilityOfPrecipitation)}`;
   if (field === 'wind') return `${period.windDirection} ${period.windSpeed}`.trim().toUpperCase();
   if (field === 'icon') return weatherSymbol(period.shortForecast);
   return '—';
@@ -394,15 +400,15 @@ function formatPeriodValue(period: NwsForecastPeriod | null, field: string): str
 export function resolveAutoText(autoKey: string | undefined, data: ForecastGraphicsData | null): string {
   if (!autoKey) return '';
   if (autoKey === 'location') return data?.locationName?.toUpperCase() || 'SAN ANTONIO, TX';
-  if (autoKey === 'updated') return data ? `UPDATED ${new Date(data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'UPDATING';
+  if (autoKey === 'updated') return data ? Number.isFinite(data.updatedAt) ? `ISSUED ${new Date(data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'ISSUE TIME UNAVAILABLE' : 'UPDATING';
 
   if (autoKey.startsWith('obs.')) {
     const observation = data?.observation;
     const field = autoKey.slice(4);
     if (field === 'temperature') return asDegrees(observation?.temperatureF);
     if (field === 'humidity') return percent(observation?.humidity);
-    if (field === 'condition') return (observation?.description || periodFor(data, 'today')?.shortForecast || 'CURRENT CONDITIONS').toUpperCase();
-    if (field === 'icon') return weatherSymbol(observation?.description || periodFor(data, 'today')?.shortForecast);
+    if (field === 'condition') return (observation?.description || 'OBSERVATION UNAVAILABLE').toUpperCase();
+    if (field === 'icon') return observation?.description ? weatherSymbol(observation.description) : '—';
     if (field === 'wind') return observation?.windMph === null || observation?.windMph === undefined ? '—' : `${observation.windDirection} ${Math.round(observation.windMph)} MPH`.trim().toUpperCase();
     if (field === 'time') return observation?.time ? `OBS ${shortTime(observation.time)}` : 'OBS —';
   }
@@ -417,9 +423,9 @@ export function resolveAutoText(autoKey: string | undefined, data: ForecastGraph
     const field = hourMatch[2];
     if (!period) return '—';
     if (field === 'time') return shortTime(period.startTime).toUpperCase();
-    if (field === 'temperature') return asDegrees(period.temperature);
+    if (field === 'temperature') return asDegrees(temperatureF(period));
     if (field === 'condition') return period.shortForecast.toUpperCase();
-    if (field === 'pop') return `RAIN ${percent(period.probabilityOfPrecipitation)}`;
+    if (field === 'pop') return `PRECIP ${percent(period.probabilityOfPrecipitation)}`;
     if (field === 'icon') return weatherSymbol(period.shortForecast);
   }
 
@@ -459,7 +465,7 @@ export function resolveAutoText(autoKey: string | undefined, data: ForecastGraph
     const field = plannerMatch[2];
     if (!period) return '—';
     if (field === 'time') return shortTime(period.startTime).toUpperCase();
-    if (field === 'temperature') return asDegrees(period.temperature);
+    if (field === 'temperature') return asDegrees(temperatureF(period));
     if (field === 'condition') return period.shortForecast.toUpperCase();
     if (field === 'icon') return weatherSymbol(period.shortForecast);
   }

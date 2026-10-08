@@ -3,7 +3,7 @@ import type{Map as WeatherMap}from'maplibre-gl';
 export interface MirrorFrame{html:string;width:number;height:number;time:number}
 // Only application-rendered passive markup crosses the local canvas bridge.
 export function passiveMarkup(root:HTMLElement){
- root.querySelectorAll('script,iframe,object,embed,audio,video,link,style,.canvas-hidden-menu,.forecast-add-menu,.forecast-asset-library,.forecast-editor-hint,.onair-tool-hint,.wx-edge,.forecast-resize-handle').forEach(n=>n.remove());
+ root.querySelectorAll('script,iframe,object,embed,audio,video,link,style,.canvas-hidden-menu,.forecast-add-menu,.forecast-asset-library,.forecast-editor-hint,.onair-tool-hint,.wx-edge,.wx-inline-controls,.forecast-inline-controls,.forecast-resize-handle').forEach(n=>n.remove());
  root.querySelectorAll('*').forEach(node=>{for(const a of [...node.attributes])if(/^on/i.test(a.name)||['contenteditable','tabindex','autofocus'].includes(a.name)||(/^(href|src|xlink:href)$/i.test(a.name)&&/^\s*javascript:/i.test(a.value)))node.removeAttribute(a.name);});
  return root.innerHTML;
 }

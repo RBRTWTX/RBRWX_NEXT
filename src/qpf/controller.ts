@@ -52,6 +52,46 @@ function stringProperty(properties: Record<string, unknown> | null | undefined, 
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+// Object-ID queries are not subject to the geometry response transfer limit.
+export async function fetchCompleteQpf(url: string, params: URLSearchParams, signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<FeatureCollection<Geometry, Record<string, unknown>>> {
+  const request = async (query: URLSearchParams) => {
+    signal.throwIfAborted();
+    const response = await fetcher(`${url}?${query}`, { signal: AbortSignal.any([signal,AbortSignal.timeout(30000)]), cache: 'no-store' });
+    if (!response.ok) throw new Error(`WPC QPF request failed (${response.status})`);
+    const raw = await response.json();
+    if (raw?.error) throw new Error(`WPC QPF service: ${raw.error.message ?? 'query failed'}`);
+    return raw;
+  };
+  const ids = await request(new URLSearchParams({ where: 'qpf > 0', returnIdsOnly: 'true', f: 'json' }));
+  if (!Array.isArray(ids?.objectIds) || !ids.objectIds.every((id: unknown) => Number.isSafeInteger(id)) || typeof ids.objectIdFieldName !== 'string') throw new Error('WPC QPF object-ID response is invalid');
+  const wanted = [...new Set<number>(ids.objectIds)];
+  const features: FeatureCollection<Geometry, Record<string, unknown>>['features'] = [];
+  const batch = async (objectIds: number[]): Promise<void> => {
+    const query = new URLSearchParams(params);
+    query.set('objectIds', objectIds.join(','));
+    query.set('outFields', `${params.get('outFields')},${ids.objectIdFieldName}`);
+    const raw = await request(query);
+    if (raw?.type !== 'FeatureCollection' || !Array.isArray(raw.features)) throw new Error('WPC QPF response was not a GeoJSON FeatureCollection');
+    if (raw.exceededTransferLimit) {
+      if (objectIds.length < 2) throw new Error('WPC QPF service truncated a single feature');
+      const middle = Math.ceil(objectIds.length / 2);
+      await batch(objectIds.slice(0, middle));
+      await batch(objectIds.slice(middle));
+      return;
+    }
+    const received = new Set(raw.features.map((f: any) => Number(f.properties?.[ids.objectIdFieldName] ?? f.id)));
+    if (received.size !== objectIds.length || objectIds.some(id => !received.has(id)) || raw.features.length !== objectIds.length) throw new Error('WPC QPF issuance changed during download; refresh to retry');
+    if (raw.features.some((f: any) => !['Polygon', 'MultiPolygon'].includes(f.geometry?.type) || !(Number(f.properties?.qpf) > 0))) throw new Error('WPC QPF contains invalid forecast geometry or amounts');
+    features.push(...raw.features);
+  };
+  for (let i = 0; i < wanted.length; i += 150) await batch(wanted.slice(i, i + 150));
+  const issues = new Set(features.map(f => f.properties?.issue_time).filter(Boolean));
+  if (issues.size > 1) throw new Error('WPC QPF contains mixed issuances; refresh to retry');
+  // Paint lower amounts first so nested higher-value polygons remain visible.
+  features.sort((a, b) => Number(a.properties?.qpf) - Number(b.properties?.qpf));
+  return { type: 'FeatureCollection', features };
+}
+
 async function fetchQpf(product: QpfProduct, force: boolean, signal: AbortSignal): Promise<QpfPayload> {
   const cached = cache.get(product);
   if (!force && cached && Date.now() - cached.fetchedAt < CACHE_MAX_AGE_MS) return cached;
@@ -64,14 +104,7 @@ async function fetchQpf(product: QpfProduct, force: boolean, signal: AbortSignal
     outSR: '4326',
     f: 'geojson',
   });
-  const response = await fetch(`${SERVICE_ROOT}/${definition.layerId}/query?${params.toString()}`, { signal, cache: 'no-store' });
-  if (!response.ok) throw new Error(`WPC QPF request failed (${response.status})`);
-  const raw: unknown = await response.json();
-  if (!raw || typeof raw !== 'object' || (raw as { type?: unknown }).type !== 'FeatureCollection' || !Array.isArray((raw as { features?: unknown }).features)) {
-    throw new Error('WPC QPF response was not a GeoJSON FeatureCollection');
-  }
-  const collection = raw as FeatureCollection<Geometry, Record<string, unknown>> & { exceededTransferLimit?: boolean };
-  if (collection.exceededTransferLimit) throw new Error('WPC QPF response exceeded the service transfer limit');
+  const collection = await fetchCompleteQpf(`${SERVICE_ROOT}/${definition.layerId}/query`, params, signal);
   const first = collection.features[0]?.properties ?? null;
   const payload: QpfPayload = {
     collection,
@@ -92,6 +125,7 @@ export class QpfController {
   private opacity = QPF_DEFAULT_OPACITY;
   private abort: AbortController | null = null;
   private generation = 0;
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private snapshot: QpfSnapshot = initialQpfSnapshot;
 
   constructor(private readonly onSnapshot: (snapshot: QpfSnapshot) => void) {}
@@ -100,10 +134,14 @@ export class QpfController {
     this.map = map;
     this.beforeId = beforeId;
     this.ensureLayer();
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = setInterval(() => { if (this.product) void this.load(true); }, CACHE_MAX_AGE_MS);
     if (this.product) void this.load(false);
     return () => {
       if (this.map !== map) return;
       this.abort?.abort();
+      if (this.refreshTimer) clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
       this.abort = null;
       if (map.getLayer(FILL_LAYER_ID)) map.removeLayer(FILL_LAYER_ID);
       if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
@@ -131,7 +169,7 @@ export class QpfController {
       opacity: this.opacity,
       message: changed ? `Loading ${QPF_PRODUCTS[product].title}…` : this.snapshot.message,
     });
-    if (changed) void this.load(false);
+    if (changed) { this.clearSource(); void this.load(false); }
   }
 
   setOpacity(opacity: number): void {
@@ -145,6 +183,8 @@ export class QpfController {
   }
 
   destroy(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = null;
     this.abort?.abort();
     this.abort = null;
     const map = this.map;

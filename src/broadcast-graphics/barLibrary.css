@@ -58,3 +58,6 @@
 .synoptic-title-frame.wx-resize-box .synoptic-title-keys,.synoptic-title-frame.wx-resize-box .synoptic-subtitle{font-size:calc(1.25cqw * var(--box-font-scale,1) * var(--box-width-compensation,1))}
 
 .wx-service-key{position:absolute;inset:55px 35px 3px;display:flex;gap:10px;align-items:center;font-size:16px}.wx-service-key img{max-width:65%;height:100%;object-fit:contain;object-position:left center}
+
+.wx-inline-controls{position:absolute;left:0;top:0;z-index:40;display:grid;gap:8px;width:min(380px,100%);padding:12px;box-sizing:border-box;background:#102131;color:#fff;border:1px solid #657e99;font:14px Arial,sans-serif;pointer-events:auto;box-shadow:0 4px 16px #0008}
+.wx-inline-controls label{display:flex;align-items:center;gap:10px}.wx-inline-controls input{min-width:0;flex:1}.wx-inline-controls span{font-size:12px}.wx-inline-controls button{color:#fff;background:#284766;border:1px solid #657e99;padding:6px}

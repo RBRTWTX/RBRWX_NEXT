@@ -1,3 +1,4 @@
+import {RadarOverlayProvider,useRadarOverlay,useGraphicRadarMap} from './RadarOverlay';
 import{IconButton,ToolIcon}from'./OnAirIcons';
 import{SessionControls}from'./SessionControls';
 import{useMenuPosition}from'./menuPosition';
@@ -61,6 +62,8 @@ interface CapturePresentationState {
   mirror?: MirrorFrame;
   hiddenMenuAvailable: boolean;
   ewx?: { enabled: boolean };
+  radar?: {enabled:boolean;sweeps:boolean};
+  overlays?:Record<string,boolean>;
 }
 
 const healthLabel: Record<MapHealth, string> = {
@@ -82,13 +85,14 @@ function timeLabel(value: number | null): string {
 }
 
 function CanvasTimeline() {
-  const { product, snapshot, controller } = useCurrentWeather();
+  const base=useCurrentWeather(),radar=useRadarOverlay();
+  const { product, snapshot, controller } = radar.enabled?{...radar,product:'radar' as const}:base;
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
-  const times = synoptic.active ? synoptic.snapshot.frames.map(f=>f.time) : forecast.active || qpf.active ? [] : snapshot.times;
-  const selected = synoptic.active ? synoptic.snapshot.payload?.time ?? null : forecast.active || qpf.active ? null : snapshot.selectedTime;
-  const animated = synoptic.active ? times.length > 1 : !forecast.active && !qpf.active && (product === 'radar' || product === 'satellite');
+  const times = synoptic.active&&!radar.enabled ? synoptic.snapshot.frames.map(f=>f.time) : (forecast.active || qpf.active)&&!radar.enabled ? [] : snapshot.times;
+  const selected = synoptic.active&&!radar.enabled ? synoptic.snapshot.payload?.time ?? null : (forecast.active || qpf.active)&&!radar.enabled ? null : snapshot.selectedTime;
+  const animated = synoptic.active&&!radar.enabled ? times.length > 1 : (radar.enabled || (!forecast.active && !qpf.active)) && (product === 'radar' || product === 'satellite');
   const markers = times.length > 24
     ? times.filter((_, index) => index === 0 || index === times.length - 1 || index % Math.ceil(times.length / 22) === 0)
     : times;
@@ -98,8 +102,8 @@ function CanvasTimeline() {
 
   return <section className="operator-timeline" aria-label="Canvas timeline">
     <div className="operator-timeline__readout">
-      <b>{forecast.active ? 'GRAPHIC' : qpf.active ? 'QPF' : animated ? 'FRAME' : 'LIVE'}</b>
-      <span>{forecast.active || qpf.active ? 'STATIC' : timeLabel(selected ?? snapshot.time)}</span>
+      <b>{forecast.active&&!radar.enabled ? 'GRAPHIC' : qpf.active&&!radar.enabled ? 'QPF' : animated ? 'FRAME' : 'LIVE'}</b>
+      <span>{(forecast.active || qpf.active)&&!radar.enabled ? 'STATIC' : timeLabel(selected ?? snapshot.time)}</span>
     </div>
     <div className="operator-timeline__track" aria-label={animated ? 'Weather frame timeline' : 'Static scene timeline'}>
       <div className="operator-timeline__rail" />
@@ -112,14 +116,14 @@ function CanvasTimeline() {
           className={`operator-timeline__marker ${active ? 'operator-timeline__marker--active' : ''}`}
           style={{ left: `${left}%` }}
           title={new Date(time).toLocaleString()}
-          onClick={() => void (synoptic.active ? synoptic.controller.loadFrame(times.indexOf(time)) : controller.seek(time))}
+          onClick={() => void (synoptic.active&&!radar.enabled ? synoptic.controller.loadFrame(times.indexOf(time)) : controller.seek(time))}
         />;
       })}
       {!animated && <span className="operator-timeline__static-marker" />}
     </div>
     <div className="operator-timeline__range">
-      <span>{forecast.active ? forecast.title.toUpperCase() : qpf.active ? qpf.title.toUpperCase() : timeLabel(start)}</span>
-      <span>{forecast.active ? 'NON-MAP SCENE' : qpf.active ? 'WPC FORECAST' : timeLabel(end)}</span>
+      <span>{forecast.active&&!radar.enabled ? forecast.title.toUpperCase() : qpf.active&&!radar.enabled ? qpf.title.toUpperCase() : timeLabel(start)}</span>
+      <span>{forecast.active&&!radar.enabled ? 'NON-MAP SCENE' : qpf.active&&!radar.enabled ? 'WPC FORECAST' : timeLabel(end)}</span>
     </div>
   </section>;
 }
@@ -167,6 +171,7 @@ function CanvasHiddenMenu({
 
 function OperatorTransport({ onPopout }: { onPopout: () => void }) {
   const broadcast = useBroadcast();
+  const radar=useRadarOverlay();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
@@ -180,7 +185,7 @@ function OperatorTransport({ onPopout }: { onPopout: () => void }) {
       <button className="operator-transport__take" type="button" onClick={broadcast.takePreview} disabled={!broadcast.state.previewItemId}>TAKE</button>
     </div>
     <div className="operator-transport__weather">
-      {synoptic.active ? <SynopticPlayback /> : forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : qpf.active ? <span className="operator-transport__graphic-label">WPC QPF · STATIC</span> : <WeatherPlayback />}
+      {radar.enabled ? <WeatherPlayback /> : synoptic.active ? <SynopticPlayback /> : forecast.active ? <span className="operator-transport__graphic-label">GRAPHIC SCENE · STATIC</span> : qpf.active ? <span className="operator-transport__graphic-label">WPC QPF · STATIC</span> : <WeatherPlayback />}
     </div>
     <button className="operator-popout" type="button" onClick={onPopout}>POP OUT CANVAS</button>
   </section>;
@@ -367,12 +372,14 @@ function OperatorWorkspace({
 }) {
   const broadcast = useBroadcast();
   const weather = useCurrentWeather();
+  const radar = useRadarOverlay();
   const ewx = useEwxAlerts();
   const tools=useOnAirTools();
   const onAirCommand=useOnAirCommands();
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
+  useGraphicRadarMap(synoptic.map,forecast.active&&radar.enabled);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [rightTab, setRightTab] = useState<ContextTab>('properties');
   const [contentTab, setContentTab] = useState<ContentTab>('scenes');
@@ -390,7 +397,7 @@ function OperatorWorkspace({
   }, []);
 
   useProgramMirror(synoptic.map, popoutMessage==='CANVAS WINDOW OPEN', async mirror=>{
-    await invoke('set_canvas_state',{state:{schema:1,mirror,hiddenMenuAvailable,ewx:{enabled:ewx.state.enabled}}});
+    await invoke('set_canvas_state',{state:{schema:1,mirror,hiddenMenuAvailable,ewx:{enabled:ewx.state.enabled},radar:{enabled:radar.enabled,sweeps:radar.options.sweepsEnabled!==false},overlays:tools.enabled}});
   });
 
   useEffect(() => {
@@ -398,7 +405,11 @@ function OperatorWorkspace({
     let busy = false;
     const apply = (action: OperatorAction) => {
       if(onAirCommand(action))return;
-      if (synoptic.active && action === 'previous') synoptic.step(-1);
+      if (radar.enabled && action === 'previous') radar.controller.step(-1);
+      else if (radar.enabled && action === 'next') radar.controller.step(1);
+      else if (radar.enabled && action === 'play-pause') radar.controller.play();
+      else if (radar.enabled && action === 'loop') radar.edit({loop:!radar.options.loop});
+      else if (synoptic.active && action === 'previous') synoptic.step(-1);
       else if (synoptic.active && action === 'next') synoptic.step(1);
       else if (synoptic.active && action === 'play-pause') synoptic.play();
       else if (synoptic.active && action === 'loop') synoptic.edit({loop:!synoptic.snapshot.settings.loop});
@@ -410,7 +421,7 @@ function OperatorWorkspace({
       else if (action === 'play-pause') broadcast.state.transport === 'playing' ? broadcast.pause() : broadcast.play();
       else if (action === 'next') broadcast.next();
       else if (action === 'loop') broadcast.setLoop(!broadcast.state.loop);
-      else if (action === 'refresh') void (synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : weather.controller.refresh());
+      else if (action === 'refresh') void (radar.enabled ? radar.controller.refresh() : synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : forecast.active ? forecast.refreshData() : weather.controller.refresh());
       else if (action === 'hide-menu') setHiddenMenuAvailable(false);
     };
     const poll = async () => {
@@ -428,7 +439,7 @@ function OperatorWorkspace({
     void poll();
     const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [onAirCommand,broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather]);
+  }, [onAirCommand,radar,forecast,broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather]);
 
   return <main className="app-shell rbrwx-broadcast-workspace">
     <header className="topbar operator-topbar">
@@ -452,9 +463,9 @@ function OperatorWorkspace({
     <CanvasTimeline />
 
     <section className="map-stage operator-canvas-stage">
-      <div className={`operator-map-layer ${forecast.active ? 'operator-map-layer--behind-graphic' : ''}`}>
+      <div className={`operator-map-layer ${forecast.active ? radar.enabled ? 'operator-map-layer--graphic-radar' : 'operator-map-layer--behind-graphic' : ''}`}>
         <WeatherMapConnection>{weatherConnect => <QpfMapConnection>{qpfConnect => <BroadcastMap
-          onMapReady={map => { const releaseWeather = weatherConnect(map); const releaseQpf = qpfConnect(map); const releaseSynoptic = synoptic.connect(map); return () => { releaseSynoptic(); releaseQpf(); releaseWeather(); }; }}
+          onMapReady={map => { const releaseWeather = weatherConnect(map); const releaseQpf = qpfConnect(map); const releaseSynoptic = synoptic.connect(map); const releaseRadar = radar.connect(map); return () => { releaseRadar(); releaseSynoptic(); releaseQpf(); releaseWeather(); }; }}
           basemapMode={basemapMode}
           visibility={visibility}
           onHealthChange={(nextHealth, message) => {
@@ -508,7 +519,7 @@ function RbrwxOperatorWorkspaceRoot() {
     initialRundownSceneIds={RBRWX_INITIAL_RUNDOWN_SCENE_IDS}
     onTake={handleBroadcastTake}
   >
-    <CurrentWeatherHost>
+    <RadarOverlayProvider><CurrentWeatherHost>
       <GraphicsHost>
         <ForecastGraphicsHost>
           <QpfHost><SynopticHost><OnAirProvider>
@@ -529,7 +540,7 @@ function RbrwxOperatorWorkspaceRoot() {
           </OnAirProvider></SynopticHost></QpfHost>
         </ForecastGraphicsHost>
       </GraphicsHost>
-    </CurrentWeatherHost>
+    </CurrentWeatherHost></RadarOverlayProvider>
   </BroadcastProvider>;
 }
 
@@ -538,7 +549,7 @@ export function RbrwxBroadcastWorkspace() {
   return captureMode ? <RbrwxCanvasCaptureWorkspace /> : <RbrwxOperatorWorkspaceRoot />;
 }
 
-function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean }) {
+function CaptureHiddenMenu({ available,ewx,radar,overlays }: { available: boolean;ewx?:boolean;radar?:{enabled:boolean;sweeps:boolean};overlays?:Record<string,boolean> }) {
   const [open, setOpen] = useState(false);
   const menuStyle=useMenuPosition();
   if (!available) return null;
@@ -546,7 +557,7 @@ function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean 
   return <div className="canvas-hidden-menu canvas-hidden-menu--capture onair-wide" style={menuStyle}>
     <button className="canvas-hidden-menu__trigger" type="button" aria-label="Open RBRTW hidden canvas menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>RBRTW</button>
     {open && <div className="canvas-hidden-menu__panel" role="group">
-      <BroadcastToolButtons command={action} ewx={ewx} draw={false}/>
+      <BroadcastToolButtons command={action} ewx={ewx} draw={false} radar={radar?.enabled} sweeps={radar?.sweeps} enabled={overlays}/>
       <div className="onair-playback" aria-label="Hidden menu playback">
         <IconButton icon="previous" label="Previous weather frame" onClick={()=>action('previous')}/>
         <IconButton icon="play" label="Play / pause weather" onClick={()=>action('play-pause')}/>
@@ -559,7 +570,7 @@ function CaptureHiddenMenu({ available,ewx }: { available: boolean;ewx?:boolean 
   </div>;
 }
 
-function CaptureWeatherCanvas({state}:{state:CapturePresentationState}){return <section className="capture-canvas-stage">{state.mirror?<ProgramMirror frame={state.mirror}/>:<div className="mirror-stalled">WAITING FOR LIVE PROGRAM</div>}<CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled}/></section>;}
+function CaptureWeatherCanvas({state}:{state:CapturePresentationState}){return <section className="capture-canvas-stage">{state.mirror?<ProgramMirror frame={state.mirror}/>:<div className="mirror-stalled">WAITING FOR LIVE PROGRAM</div>}<CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled} radar={state.radar} overlays={state.overlays}/></section>;}
 
 export function RbrwxCanvasCaptureWorkspace() {
   const [state, setState] = useState<CapturePresentationState | null>(null);

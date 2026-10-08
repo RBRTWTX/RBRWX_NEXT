@@ -9,13 +9,6 @@ const expectedWarnings = new Set([
   'OBS-IDW-SURFACE',
   'RADAR-SWEEP-SYNTHETIC',
   'FORECAST-FIXED-LOCATION',
-  'FORECAST-FETCH-TIME',
-  'FORECAST-QUANTITY-UNITS-QC',
-  'FORECAST-OBS-FALLBACK',
-  'FORECAST-TEMP-UNIT-DISPLAY',
-  'FORECAST-POP-LABEL',
-  'QPF-AUTO-REFRESH',
-  'QPF-VALIDITY-EXPRESSION',
 ]);
 
 test('implemented weather source contracts contain no unidentified FAIL condition', () => {

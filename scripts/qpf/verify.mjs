@@ -40,7 +40,7 @@ for (const token of ['<QpfHost>','<QpfMapConnection>','useProgramMirror(synoptic
 if (!workspace.includes("contentKey.startsWith('current.') || contentKey.startsWith('qpf.')")) fail('QPF scenes do not force the broadcast basemap');
 if (!currentHost.includes("contentKey.startsWith('qpf.')")) fail('weather product selector does not release MAP selection for QPF scenes');
 if (!tauri.includes('https://mapservices.weather.noaa.gov')) fail('Tauri CSP does not allow the WPC QPF provider');
-if (!providerVerifier.includes('resultRecordCount') || !providerVerifier.includes('providerOrigins') || !providerVerifier.includes('service.serviceDescription') || providerVerifier.includes('service.description')) fail('live QPF provider/CORS/service metadata verifier is incomplete');
+if (!providerVerifier.includes('fetchCompleteQpf') || !providerVerifier.includes('providerOrigins') || !providerVerifier.includes('service.serviceDescription') || providerVerifier.includes('service.description')) fail('live QPF provider/CORS/service metadata verifier is incomplete');
 if (runtime.includes('position: absolute') || css.includes('position: absolute')) fail('QPF controls must not add map-overlay badges/legends/status panels');
 
 const noComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
