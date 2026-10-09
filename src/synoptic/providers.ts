@@ -1,3 +1,4 @@
+import {discoverHrrr} from './futurecast';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { Frame, Payload, Product, SceneSettings, WeatherObject } from './model';
 export async function response(url:string,signal:AbortSignal) {const r=await fetch(url,{signal:AbortSignal.any([signal,AbortSignal.timeout(30000)]),credentials:'omit',cache:'no-store'});if(!r.ok)throw Error(`Provider HTTP ${r.status}`);return r;}
@@ -25,6 +26,7 @@ export async function keys(bucket:string,prefix:string,signal:AbortSignal):Promi
 export const BUCKETS={rtma:'https://noaa-rtma-pds.s3.amazonaws.com/',urma:'https://noaa-urma-pds.s3.amazonaws.com/',mrms:'https://noaa-mrms-pds.s3.amazonaws.com/',glm:'https://noaa-goes19.s3.amazonaws.com/'};
 const day=(time:number)=>new Date(time).toISOString().slice(0,10).replaceAll('-','');
 export async function gridFrames(p:Product,signal:AbortSignal):Promise<Frame[]> {
+ if(p.family==='futurecast')return discoverHrrr(signal);
  const type=p.family==='mrms'?'mrms':p.id.startsWith('urma')?'urma':'rtma',bucket=BUCKETS[type];
  const dates=[day(Date.now()),day(Date.now()-86400000)];
  const lists=await Promise.all(dates.map(d=>keys(bucket,type==='mrms'?`CONUS/${p.field}/${d}/`:`${type}2p5.${d}/`,signal)));
@@ -36,13 +38,14 @@ export async function gridFrames(p:Product,signal:AbortSignal):Promise<Frame[]> 
 export async function gridBytes(p:Product,frame:Frame,signal:AbortSignal):Promise<ArrayBuffer>{
  if(p.family==='mrms')return(await response(frame.key,signal)).arrayBuffer();
  const idx=await(await response(frame.key+'.idx',signal)).text();const lines=idx.trim().split('\n').map(l=>l.split(':'));
- const index=lines.findIndex(l=>l[3]===p.field&&l[4]===(p.field==='PRES'?'surface':p.field==='WIND'?'10 m above ground':'2 m above ground'));
+ const index=lines.findIndex(l=>l[3]===p.field&&l[4]===(p.field==='REFC'?'entire atmosphere':p.field==='PRES'?'surface':p.field==='WIND'?'10 m above ground':'2 m above ground'));
  if(index<0)throw Error(`NOAA index lacks ${p.field} at required level`);
  const start=Number(lines[index][1]),end=lines[index+1]?Number(lines[index+1][1])-1:undefined;
  if(!Number.isSafeInteger(start)||start<0)throw Error('Invalid GRIB index offset');
  const r=await fetch(frame.key,{signal:AbortSignal.any([signal,AbortSignal.timeout(30000)]),headers:{Range:`bytes=${start}-${end??''}`}});
+ if(end!==undefined&&(!Number.isSafeInteger(end)||end<start||end-start>32*1024*1024))throw Error('Invalid or oversized GRIB range');
  if(r.status!==206)throw Error('Provider did not honor bounded GRIB byte range');
- return r.arrayBuffer();
+ const bytes=await r.arrayBuffer();if(end!==undefined&&bytes.byteLength!==end-start+1)throw Error('Truncated GRIB byte range');return bytes;
 }
 async function limitedMap<T,R>(values:T[],work:(value:T)=>Promise<R>):Promise<R[]> {
  const out:R[]=new Array(values.length);let next=0;

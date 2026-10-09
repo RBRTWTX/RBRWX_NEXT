@@ -11,11 +11,11 @@ export interface Stroke{points:LonLat[];color:string;width:number}
 export interface ToolState{strokes:Stroke[];track:LonLat[];mph:number;time:number}
 export interface ToolsSnapshot{overlays:PackSnapshot[];objects:ToolState}
 const fresh=():ToolState=>({strokes:[],track:[],mph:30,time:0});
-interface Model{snapshot:ToolsSnapshot;enabled:Record<string,boolean>;toggle:(id:string)=>void;mode:Mode;setMode:(mode:Mode)=>void;edit:(patch:Partial<ToolState>)=>void;color:string;setColor:(color:string)=>void;refresh:()=>void}
+interface Model{snapshot:ToolsSnapshot;enabled:Record<string,boolean>;setEnabled:(value:Record<string,boolean>)=>void;toggle:(id:string)=>void;mode:Mode;setMode:(mode:Mode)=>void;edit:(patch:Partial<ToolState>)=>void;color:string;setColor:(color:string)=>void;refresh:()=>void}
 const Context=createContext<Model|null>(null);
 export function useOnAirTools(){const c=useContext(Context);if(!c)throw Error('On-air tools missing');return c;}
 export function OnAirProvider({children}:{children:ReactNode}){
- const{map}=useSynoptic(),{state}=useBroadcast(),scene=state.programItemId??'startup';
+ const{map}=useSynoptic(),{state,programScene}=useBroadcast(),scene=`${programScene?.id??'startup'}:${state.programItemId??'direct'}`;
  const[byScene,setByScene]=useState<Record<string,ToolState>>(()=>{try{return JSON.parse(localStorage.getItem('rbrwx-onair-objects-v1')??'{}')??{};}catch{return{};}});
  const objects=byScene[scene]??fresh(),[enabled,setEnabled]=useState<Record<string,boolean>>({}),[mode,setMode]=useState<Mode>('none'),[color,setColor]=useState('#fff000'),[overlays,setOverlays]=useState<PackSnapshot[]>(()=>OVERLAYS.map(()=>emptyPack()));
  const controllers=useMemo(()=>OVERLAYS.map((layer,i)=>new SynopticRuntime(value=>setOverlays(old=>old.map((s,j)=>i===j?value:s)),`rbrwx-onair-${layer.id}`)),[]);
@@ -25,7 +25,7 @@ export function OnAirProvider({children}:{children:ReactNode}){
  useEffect(()=>{if(!map)return;const release=controllers.map(c=>c.connect(map));return()=>release.forEach(f=>f());},[map,controllers]);
  useEffect(()=>{controllers.forEach((c,i)=>c.select(enabled[OVERLAYS[i].id]?PRODUCTS.find(p=>p.id===OVERLAYS[i].product)!:null,{...defaults(),opacity:.6,labels:OVERLAYS[i].id==='cone'}));},[enabled,controllers]);
  useEffect(()=>{const timer=setInterval(()=>controllers.forEach((c,i)=>{if(enabled[OVERLAYS[i].id])void c.refresh();}),60000);return()=>clearInterval(timer);},[controllers,enabled]);
- return <Context.Provider value={{snapshot:{overlays,objects},enabled,toggle:id=>setEnabled(old=>({...old,[id]:!old[id]})),mode,setMode,color,setColor,edit:patch=>setByScene(old=>({...old,[scene]:{...(old[scene]??fresh()),...patch}})),refresh:()=>controllers.forEach((c,i)=>{if(enabled[OVERLAYS[i].id])void c.refresh();})}}>{children}</Context.Provider>;
+ return <Context.Provider value={{snapshot:{overlays,objects},enabled,setEnabled,toggle:id=>setEnabled(old=>({...old,[id]:!old[id]})),mode,setMode,color,setColor,edit:patch=>setByScene(old=>({...old,[scene]:{...(old[scene]??fresh()),...patch}})),refresh:()=>controllers.forEach((c,i)=>{if(enabled[OVERLAYS[i].id])void c.refresh();})}}>{children}</Context.Provider>;
 }
 export function OnAirDrawing({map,snapshot,live=false}:{map:WeatherMap|null;snapshot:ToolsSnapshot;live?:boolean}){
  const context=useContext(Context),mode=live?context?.mode??'none':'none',[,tick]=useState(0),[draft,setDraft]=useState<LonLat[]>([]),drawing=useRef<LonLat[]|null>(null);

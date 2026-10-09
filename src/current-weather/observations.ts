@@ -29,6 +29,11 @@ export function parseObservation(raw: unknown, station: { id: string; name: stri
   };
 }
 
+/** A recent report may be marked stale after 90 minutes, but never paint reports older than three hours. */
+export function usableObservation(observation: Pick<Observation, 'time'>, now = Date.now()): boolean {
+  return Number.isFinite(observation.time) && observation.time <= now + 5 * 60000 && now - observation.time <= 3 * 3600000;
+}
+
 async function json(url: string, signal: AbortSignal): Promise<RecordValue> {
   if (new URL(url).origin !== 'https://api.weather.gov') throw Error('Unexpected observation service');
   const response = await fetch(url, {

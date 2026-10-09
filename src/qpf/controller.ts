@@ -20,27 +20,27 @@ interface QpfPayload {
 
 const cache = new Map<QpfProduct, QpfPayload>();
 
-const WPC_QPF_FILL_COLOR: FillLayerSpecification['paint'] = {
+export const WPC_QPF_FILL_COLOR: FillLayerSpecification['paint'] = {
   'fill-color': [
-    'match', ['to-number', ['get', 'qpf']],
-    0.01, '#7fff00',
-    0.1, '#00ff00',
-    0.25, '#088b00',
-    0.5, '#104e8b',
-    0.75, '#1e90ff',
-    1, '#00b2ee',
-    1.25, '#00eeee',
-    1.5, '#8968cd',
-    1.75, '#912cee',
-    2, '#8b008b',
-    2.5, '#8b0000',
-    3, '#ff0000',
-    4, '#ee4000',
-    5, '#ff7f00',
-    7, '#ce8500',
-    10, '#ffd700',
-    15, '#ffff00',
-    20, '#ffc0b7',
+    'match', ['to-string', ['to-number', ['get', 'qpf']]],
+    '0.01', '#7fff00',
+    '0.1', '#00ff00',
+    '0.25', '#088b00',
+    '0.5', '#104e8b',
+    '0.75', '#1e90ff',
+    '1', '#00b2ee',
+    '1.25', '#00eeee',
+    '1.5', '#8968cd',
+    '1.75', '#912cee',
+    '2', '#8b008b',
+    '2.5', '#8b0000',
+    '3', '#ff0000',
+    '4', '#ee4000',
+    '5', '#ff7f00',
+    '7', '#ce8500',
+    '10', '#ffd700',
+    '15', '#ffff00',
+    '20', '#ffc0b7',
     'rgba(0,0,0,0)',
   ],
   'fill-opacity': QPF_DEFAULT_OPACITY,
@@ -209,6 +209,7 @@ export class QpfController {
       const before = this.beforeId && map.getLayer(this.beforeId) ? this.beforeId : undefined;
       map.addLayer({ id: FILL_LAYER_ID, type: 'fill', source: SOURCE_ID, paint: WPC_QPF_FILL_COLOR } as FillLayerSpecification, before);
     }
+    if(!map.getLayer(FILL_LAYER_ID))throw new Error('QPF map layer failed style validation');
     this.applyOpacity();
   }
 

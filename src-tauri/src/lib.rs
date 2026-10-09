@@ -178,14 +178,12 @@ fn request_operator_action(
     bridge: State<'_, CanvasBridgeState>,
     action: String,
 ) -> Result<(), String> {
-    const ALLOWED: &[&str] = &["previous", "play-pause", "next", "loop", "refresh", "hide-menu",
-        "radar-toggle", "radar-off", "bar-add", "bar-refresh", "ewx-toggle", "ewx-refresh", "sweeps", "pen", "track", "pen-undo", "pen-clear", "track-clear", "layers-off", "overlays-refresh",
-        "overlay:warnings", "overlay:lightning", "overlay:cone", "overlay:surge", "radar:reflectivity", "radar:velocity", "radar:hydro",
-        "satellite:longwave", "satellite:shortwave", "satellite:visible", "satellite:water_vapor", "satellite:snow_ice",
-        "mrms:mrms-reflectivity", "mrms:mrms-composite", "mrms:mrms-qpe1", "mrms:mrms-qpe24", "mrms:mrms-rate", "mrms:mrms-type", "mrms:mrms-tops", "mrms:mrms-hail", "mrms:mrms-shear", "mrms:mrms-flood"];
+    let allowed: Vec<String> = serde_json::from_str(include_str!("../../src/broadcast-host/operatorCommands.json")).map_err(|e| e.to_string())?;
+    let seek = action.strip_prefix("seek:").and_then(|s| s.parse::<usize>().ok()).is_some_and(|n| n < 1000);
+    let site = action.strip_prefix("radar-site:").is_some_and(|s| s.len() == 4 && s.bytes().all(|b| b.is_ascii_alphanumeric()));
     let speed = action.strip_prefix("speed:").and_then(|value| value.parse::<f64>().ok()).is_some_and(|value| value.is_finite() && (1.0..=150.0).contains(&value));
     let color = action.strip_prefix("color:#").is_some_and(|value| value.len() == 6 && value.bytes().all(|b| b.is_ascii_hexdigit()));
-    if action.len() > 80 || !(ALLOWED.contains(&action.as_str()) || speed || color) {
+    if action.len() > 80 || !(allowed.contains(&action) || speed || color || seek || site) {
         return Err(format!("unsupported operator action: {action}"));
     }
     let mut inner = bridge.0.lock()

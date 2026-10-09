@@ -88,6 +88,7 @@ export interface CurrentObservation {
 }
 
 export interface ForecastGraphicsData {
+  timeZone?:string;
   locationName: string;
   periods: NwsForecastPeriod[];
   hourly: NwsHourlyPeriod[];
@@ -333,10 +334,10 @@ function percent(value: number | null | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${Math.round(value)}%` : '—';
 }
 
-function shortTime(value: string | null | undefined): string {
+function shortTime(value: string | null | undefined,timeZone?:string): string {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString([], { timeZone,hour: 'numeric', minute: '2-digit' }) : '—';
 }
 
 function periodFor(data: ForecastGraphicsData | null, which: 'today' | 'tonight'): NwsForecastPeriod | null {
@@ -359,16 +360,16 @@ function dailySummaries(data: ForecastGraphicsData | null): DailySummary[] {
   for (const period of data.periods) {
     const date = new Date(period.startTime);
     if (!Number.isFinite(date.getTime())) continue;
-    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    const key = date.toLocaleDateString('en-CA',{timeZone:data.timeZone});
     const bucket = buckets.get(key) ?? { date };
     if (period.isDaytime) bucket.day = period; else bucket.night = period;
     buckets.set(key, bucket);
   }
   return [...buckets.values()].slice(0, 7).map(bucket => ({
-    name: bucket.date.toLocaleDateString([], { weekday: 'short' }).toUpperCase(),
+    name: bucket.date.toLocaleDateString('en-US', {timeZone:data.timeZone, weekday: 'short' }).toUpperCase(),
     high: temperatureF(bucket.day),
     low: temperatureF(bucket.night),
-    pop: Math.max(bucket.day?.probabilityOfPrecipitation ?? 0, bucket.night?.probabilityOfPrecipitation ?? 0),
+    pop: bucket.day?.probabilityOfPrecipitation==null&&bucket.night?.probabilityOfPrecipitation==null?null:Math.max(bucket.day?.probabilityOfPrecipitation??0,bucket.night?.probabilityOfPrecipitation??0),
     condition: bucket.day?.shortForecast ?? bucket.night?.shortForecast ?? 'Forecast unavailable',
   }));
 }
@@ -400,7 +401,7 @@ function formatPeriodValue(period: NwsForecastPeriod | null, field: string): str
 export function resolveAutoText(autoKey: string | undefined, data: ForecastGraphicsData | null): string {
   if (!autoKey) return '';
   if (autoKey === 'location') return data?.locationName?.toUpperCase() || 'SAN ANTONIO, TX';
-  if (autoKey === 'updated') return data ? Number.isFinite(data.updatedAt) ? `ISSUED ${new Date(data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'ISSUE TIME UNAVAILABLE' : 'UPDATING';
+  if (autoKey === 'updated') return data ? Number.isFinite(data.updatedAt) ? `ISSUED ${new Date(data.updatedAt).toLocaleTimeString([], {timeZone:data.timeZone, hour: 'numeric', minute: '2-digit' })}` : 'ISSUE TIME UNAVAILABLE' : 'UPDATING';
 
   if (autoKey.startsWith('obs.')) {
     const observation = data?.observation;
@@ -410,7 +411,7 @@ export function resolveAutoText(autoKey: string | undefined, data: ForecastGraph
     if (field === 'condition') return (observation?.description || 'OBSERVATION UNAVAILABLE').toUpperCase();
     if (field === 'icon') return observation?.description ? weatherSymbol(observation.description) : '—';
     if (field === 'wind') return observation?.windMph === null || observation?.windMph === undefined ? '—' : `${observation.windDirection} ${Math.round(observation.windMph)} MPH`.trim().toUpperCase();
-    if (field === 'time') return observation?.time ? `OBS ${shortTime(observation.time)}` : 'OBS —';
+    if (field === 'time') return observation?.time ? `OBS ${shortTime(observation.time,data?.timeZone)}` : 'OBS —';
   }
 
   for (const which of ['today', 'tonight'] as const) {
@@ -422,7 +423,7 @@ export function resolveAutoText(autoKey: string | undefined, data: ForecastGraph
     const period = data?.hourly[Number(hourMatch[1])] ?? null;
     const field = hourMatch[2];
     if (!period) return '—';
-    if (field === 'time') return shortTime(period.startTime).toUpperCase();
+    if (field === 'time') return shortTime(period.startTime,data?.timeZone).toUpperCase();
     if (field === 'temperature') return asDegrees(temperatureF(period));
     if (field === 'condition') return period.shortForecast.toUpperCase();
     if (field === 'pop') return `PRECIP ${percent(period.probabilityOfPrecipitation)}`;
@@ -464,7 +465,7 @@ export function resolveAutoText(autoKey: string | undefined, data: ForecastGraph
     const period = hourlyForPlanner(data, Number(plannerMatch[1]));
     const field = plannerMatch[2];
     if (!period) return '—';
-    if (field === 'time') return shortTime(period.startTime).toUpperCase();
+    if (field === 'time') return shortTime(period.startTime,data?.timeZone).toUpperCase();
     if (field === 'temperature') return asDegrees(temperatureF(period));
     if (field === 'condition') return period.shortForecast.toUpperCase();
     if (field === 'icon') return weatherSymbol(period.shortForecast);

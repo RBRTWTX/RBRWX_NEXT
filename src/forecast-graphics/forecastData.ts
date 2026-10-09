@@ -1,11 +1,11 @@
+import {FORECAST_LOCATIONS,validLocation,type ForecastLocation} from './locations';
 import type { CurrentObservation, ForecastGraphicsData, NwsForecastPeriod, NwsHourlyPeriod } from './model';
 
-const HOME_LAT = 29.4317;
-const HOME_LON = -98.8063;
 const API_ROOT = 'https://api.weather.gov';
 
 interface NwsPointResponse {
   properties?: {
+    timeZone?:string;
     forecast?: string;
     forecastHourly?: string;
     observationStations?: string;
@@ -119,8 +119,9 @@ async function loadObservation(stationsUrl: string | undefined, signal?: AbortSi
   }
 }
 
-export async function loadForecastGraphicsData(signal?: AbortSignal): Promise<ForecastGraphicsData> {
-  const point = await getJson<NwsPointResponse>(`${API_ROOT}/points/${HOME_LAT.toFixed(4)},${HOME_LON.toFixed(4)}`, signal);
+export async function loadForecastGraphicsData(signal?: AbortSignal,location:ForecastLocation=FORECAST_LOCATIONS[0]): Promise<ForecastGraphicsData> {
+  if(!validLocation(location))throw new Error('Enter a valid name, latitude, and longitude.');
+  const point = await getJson<NwsPointResponse>(`${API_ROOT}/points/${location.lat.toFixed(4)},${location.lon.toFixed(4)}`, signal);
   const properties = point.properties ?? {};
   if (!properties.forecast || !properties.forecastHourly) throw new Error('NWS point metadata did not provide forecast endpoints.');
 
@@ -135,6 +136,11 @@ export async function loadForecastGraphicsData(signal?: AbortSignal): Promise<Fo
   if (!periods.length || !hourly.length) throw new Error('NWS forecast response did not contain usable forecast periods.');
 
   const relative = properties.relativeLocation?.properties;
-  const locationName = [relative?.city, relative?.state].filter(Boolean).join(', ') || 'San Antonio, TX';
-  return { locationName, periods, hourly, observation, updatedAt: Date.parse(forecastResponse.properties?.updateTime??forecastResponse.properties?.generatedAt??'') };
+  const locationName = [relative?.city, relative?.state].filter(Boolean).join(', ') || location.name;
+  const timeZone=properties.timeZone??'America/Chicago';
+  try{new Intl.DateTimeFormat('en-US',{timeZone});}catch{throw new Error('Invalid forecast timezone');}
+  const updatedAt=Date.parse(forecastResponse.properties?.updateTime??forecastResponse.properties?.generatedAt??'');
+  if(!Number.isFinite(updatedAt)||Date.now()-updatedAt>24*3600000||updatedAt>Date.now()+300000)throw new Error('Forecast issuance is missing or stale');
+  if(!periods.some(p=>Date.parse(p.endTime)>Date.now()))throw new Error('Forecast periods have expired');
+  return { timeZone,locationName:location.name || locationName, periods, hourly, observation, updatedAt };
 }

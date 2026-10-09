@@ -54,6 +54,7 @@ try {
   assert.equal(model.resolveAutoText('obs.condition',{...sample,observation:null}),'OBSERVATION UNAVAILABLE');
   assert.equal(model.resolveAutoText('obs.icon',{...sample,observation:null}),'—');
   fs.writeFileSync(path.join(temp,'forecastData.cjs'),ts.transpileModule(read('src/forecast-graphics/forecastData.ts'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);
+  fs.writeFileSync(path.join(temp,'locations.js'),ts.transpileModule(read('src/forecast-graphics/locations.ts'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);
   const {quantity}=require(path.join(temp,'forecastData.cjs'));
   assert.equal(quantity({value:20,unitCode:'wmoUnit:degC',qualityControl:'V'},'degC'),20);
   assert.equal(quantity({value:20,unitCode:'wmoUnit:degF',qualityControl:'V'},'degC'),null);
@@ -63,7 +64,7 @@ try {
   assert.equal(model.displayText({ ...auto, textOverride:'93°' }, sample), '93°', 'Direct edit must override only the displayed scene object');
 
   const editor = read('src/forecast-graphics/ForecastGraphics.tsx');
-  for (const token of ['contentEditable={editing}', "event.key !== 'Delete'", "event.key !== 'Backspace'", 'forecast-resize-handle', "mode: 'move' | 'scale'", '.PNG / .SVG LIBRARY', 'TEXT BOX', 'ICON', 'PANEL', 'CIRCLE', "invoke<GraphicAssetEntry[]>('list_graphic_assets')", "invoke<string>('read_graphic_asset'"]) assert.match(editor, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')), token);
+  for (const token of ['<EditableText', "event.key !== 'Delete'", "event.key !== 'Backspace'", 'forecast-resize-handle', "mode: 'move' | 'scale'", '.PNG / .SVG LIBRARY', 'TEXT BOX', 'ICON', 'PANEL', 'CIRCLE', "invoke<GraphicAssetEntry[]>('list_graphic_assets')", "invoke<string>('read_graphic_asset'"]) assert.match(editor, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')), token);
   assert.doesNotMatch(editor.slice(editor.indexOf('export function ForecastGraphicProperties()')), /type=["']range["']/, 'Right-side properties must not contain text sizing sliders');
   assert.match(editor,/forecast-inline-controls/,'Sizing controls belong inside the displayed object');
   assert.match(editor, /transform:\s*`scale\(\$\{item\.scale \?\? 1\}\)`/, 'Corner drag must scale the complete object, including text');

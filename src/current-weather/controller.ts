@@ -20,7 +20,7 @@ import {
   type RadarSite,
   type Snapshot,
 } from './model';
-import { ObservationsClient } from './observations';
+import { ObservationsClient, usableObservation } from './observations';
 
 const observationSourceId = 'rbrwx-current-observations';
 const observationLayerId = 'rbrwx-current-observation-labels';
@@ -135,7 +135,7 @@ function observationFieldLabel(observation: Observation, field: CurrentCondition
   return temperatureLabel(observation.temperature, units);
 }
 
-const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
 
 function transparentCurrentField(): CurrentFieldImage {
   return { url: transparentPixel, coordinates: [[-180, 85], [180, 85], [180, -85], [-180, -85]] };
@@ -220,6 +220,7 @@ export class CurrentWeatherController {
   private refreshing = false;
   private paletteFallback = false;
   private observations = new ObservationsClient();
+  private requestedPrimaryRadar: string | null = null;
   snapshot = initialSnapshot();
 
   constructor(private notify: (snapshot: Snapshot) => void, private factory = loadManager, private ownsObservations = true) { }
@@ -259,7 +260,7 @@ export class CurrentWeatherController {
   destroy() { this.clear(); this.map = null; }
 
   private async start() {
-    const initialRadarIds=[...this.snapshot.activeRadarIds];
+    const initialRadarIds=this.requestedPrimaryRadar?[this.requestedPrimaryRadar]:[...this.snapshot.activeRadarIds];
     this.clear(); const generation = this.generation, map = this.map;
     this.emit(initialSnapshot()); if (this.product === 'map') return;
     if (!map) { this.emit({ status: 'loading', message: 'Waiting for geographic map' }); return; }
@@ -305,6 +306,8 @@ export class CurrentWeatherController {
       });
       this.interval = setInterval(() => this.pollFrame(), 500);
       await manager.initialize(); if (generation !== this.generation) return;
+      if(this.requestedPrimaryRadar)await manager.setPrimaryRadar?.(this.requestedPrimaryRadar);
+      if(generation!==this.generation)return;
       this.received = Date.now(); this.refreshInterval = setInterval(() => void this.refresh(), 120000);
     } catch (error) {
       if (this.manager === manager && manager) {
@@ -343,13 +346,14 @@ export class CurrentWeatherController {
       if (generation !== this.generation || abort.signal.aborted) return;
       this.emit({ observations }); this.drawObservations();
     } catch (error) {
-      if (generation === this.generation && !abort.signal.aborted) this.emit({ status: 'unavailable', message: `NWS observations: ${error instanceof Error ? error.message : 'request failed'}. Refresh to retry.` });
+      if (generation === this.generation && !abort.signal.aborted) { this.emit({observations: []}); this.drawObservations(); this.emit({ status: 'unavailable', message: `NWS observations: ${error instanceof Error ? error.message : 'request failed'}. Refresh to retry.` }); }
     }
   }
 
   private drawObservations() {
     if (this.product !== 'observations' || !this.map) return;
-    const observations = this.snapshot.observations, field = this.options.currentField;
+    const observations = this.snapshot.observations.filter(o => usableObservation(o)), field = this.options.currentField;
+    const excluded = this.snapshot.observations.length - observations.length;
     const features = observations.flatMap(observation => {
       const label = observationFieldLabel(observation, field, this.options.units); if (!label) return [];
       return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [observation.lng, observation.lat] }, properties: { label } }];
@@ -364,8 +368,8 @@ export class CurrentWeatherController {
       const states = observations.map(o => freshness(o.time, 90, o.cached));
       const status = states.includes('unavailable') ? 'unavailable' : states.includes('stale') ? 'stale' : states.includes('cached') ? 'cached' : 'fresh';
       const validCount = observations.filter(o => observationFieldValue(o, field) !== null).length;
-      this.emit({ status, time: Math.min(...observations.map(o => o.time)), message: `NWS ${currentConditionTitles[field].toLowerCase()} · ${status.toUpperCase()} · ${validCount} values across ${observations.length} sampled stations` });
-    }
+      this.emit({ status, time: Math.min(...observations.map(o => o.time)), message: `NWS ${currentConditionTitles[field].toLowerCase()} · ${status.toUpperCase()} · ${validCount} values across ${observations.length} sampled stations${excluded ? ` · ${excluded} expired reports excluded` : ''}` });
+    } else this.emit({status: 'unavailable', time: null, message: 'NWS current conditions unavailable · no recent station reports'});
   }
 
   async refresh() {
@@ -380,6 +384,7 @@ export class CurrentWeatherController {
   }
 
   async setPrimaryRadar(id: string) {
+    this.requestedPrimaryRadar = id;
     if (this.product !== 'radar' || !this.manager?.setPrimaryRadar) return;
     await this.manager.setPrimaryRadar(id);
   }

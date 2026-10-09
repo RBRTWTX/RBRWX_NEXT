@@ -33,7 +33,7 @@ for (const [key, layer] of [['qpf.day1', 1], ['qpf.day2', 2], ['qpf.day3', 3], [
 if (!controller.includes('https://mapservices.weather.noaa.gov/vector/rest/services/precip/wpc_qpf/MapServer')) fail('authoritative NOAA/WPC service URL missing');
 for (const token of ["where: 'qpf > 0'", "outSR: '4326'", "f: 'geojson'", "outFields: 'product,valid_time,qpf,units,issue_time,start_time,end_time'"]) if (!controller.includes(token)) fail(`authoritative query contract missing ${token}`);
 for (const [value, color] of [['0.01','#7fff00'],['0.1','#00ff00'],['0.25','#088b00'],['0.5','#104e8b'],['0.75','#1e90ff'],['1','#00b2ee'],['1.25','#00eeee'],['1.5','#8968cd'],['1.75','#912cee'],['2','#8b008b'],['2.5','#8b0000'],['3','#ff0000'],['4','#ee4000'],['5','#ff7f00'],['7','#ce8500'],['10','#ffd700'],['15','#ffff00'],['20','#ffc0b7']]) {
-  if (!controller.toLowerCase().includes(`${value}, '${color}'`)) fail(`WPC QPF palette entry missing: ${value} ${color}`);
+  if (!controller.toLowerCase().includes(`'${value}', '${color}'`)) fail(`WPC QPF palette entry missing: ${value} ${color}`);
 }
 for (const token of ['QpfProvider','QpfMapConnection','QpfControls','QpfStatus']) if (!runtime.includes(token) && !host.includes(token)) fail(`QPF runtime missing ${token}`);
 for (const token of ['<QpfHost>','<QpfMapConnection>','useProgramMirror(synoptic.map','<ProgramMirror frame={state.mirror}']) if (!workspace.includes(token)) fail(`main/capture integration missing ${token}`);

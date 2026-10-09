@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),ts=require('../broadcast/vendor/typescript/typescript.cjs'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'cp3-contracts-'));
-for(const name of ['model','providers','palette','contours']){const source=fs.readFileSync(new URL(`../../src/synoptic/${name}.ts`,import.meta.url),'utf8');fs.writeFileSync(path.join(dir,name+'.js'),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);}
+for(const name of ['model','providers','palette','contours','futurecast']){const source=fs.readFileSync(new URL(`../../src/synoptic/${name}.ts`,import.meta.url),'utf8');fs.writeFileSync(path.join(dir,name+'.js'),ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);}
 const {parseSurface,timestamp,vectorPayload,gridBytes}=require(path.join(dir,'providers.js')),{PRODUCTS}=require(path.join(dir,'model.js')),{colorFor,legendFor}=require(path.join(dir,'palette.js'));
 process.on('exit',()=>fs.rmSync(dir,{recursive:true,force:true}));
 test('WPC month/day/hour and wrapped front positions preserve coordinates',()=>{const now=Date.UTC(2026,8,28,5);const p=parseSurface('VALID 092803Z\nHIGHS 1022 7384\nCOLD 4063 3963\n 3763 36100',now);assert.equal(p.time,Date.UTC(2026,8,28,3));assert.deepEqual(p.objects[0].points,[[-84,73]]);assert.deepEqual(p.objects[1].points,[[-63,40],[-63,39],[-63,37],[-100,36]]);assert.throws(()=>parseSurface('VALID 092703Z\nCOLD 4063 3963',now),/validity/);});

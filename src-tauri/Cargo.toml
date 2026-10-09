@@ -1,6 +1,6 @@
 [package]
 name = "rbrwx-next"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 description = "RBRWX NEXT broadcast weather workstation"
 authors = ["RBRTWTX"]
 edition = "2021"

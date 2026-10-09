@@ -1,7 +1,7 @@
 {
   "name": "rbrwx-next",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0-rc.1",
   "type": "module",
   "engines": {
     "node": ">=22 <25"
@@ -21,7 +21,7 @@
     "native:assets": "node scripts/validate-native-assets.mjs",
     "verify:foundation": "npm run map:integrity && npm run native:assets && npm run map:contract && npm run map:style && npm run map:provider:test",
     "verify:modules": "node scripts/broadcast/verify-broadcast.mjs && node scripts/graphics/verify.mjs && node scripts/current-weather/verify.mjs && node scripts/forecast-graphics/verify.mjs && node scripts/qpf/verify.mjs",
-    "verify": "npm run repo:integrity && npm run repo:installer && npm run desktop:test && npm run bars:test && npm run onair:test && npm run qpf:test && npm run weather:audit:test && npm run synoptic:test && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
+    "verify": "npm run repo:integrity && npm run repo:installer && npm run desktop:test && npm run bars:test && npm run onair:test && npm run refinement:test && npm run qpf:test && npm run weather:audit:test && npm run synoptic:test && npm run verify:foundation && npm run verify:modules && npm run typecheck && npm run build",
     "verify:live": "npm run map:provider && npm run weather:audit",
     "typecheck": "tsc -b --pretty false",
     "build": "tsc -b && vite build",
@@ -30,7 +30,11 @@
     "desktop:test": "node --test scripts/desktop/*.test.mjs",
     "bars:test": "node --test scripts/bar-library/*.test.mjs",
     "onair:test": "node --test scripts/onair/*.test.mjs",
-    "qpf:test": "node --test scripts/qpf/*.test.mjs"
+    "qpf:test": "node --test scripts/qpf/*.test.mjs",
+    "refinement:test": "node --test scripts/refinement/*.test.mjs",
+    "render:test": "node scripts/render/run.mjs",
+    "release:windows": "node scripts/release/windows.mjs",
+    "editor:test": "node scripts/render/editor.mjs"
   },
   "dependencies": {
     "@azohra/meteo.grib": "0.1.4",
@@ -50,6 +54,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
+    "playwright": "1.62.1",
     "typescript": "7.0.2",
     "vite": "8.2.2"
   }

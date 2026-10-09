@@ -4,9 +4,9 @@
   "files": {
     "scripts/qpf/pagination.test.mjs": "cc996ce8c212cd957add12c5fc85f8171790f0e119ed75896f8e78782e58fdaf",
     "scripts/qpf/verify-provider.mjs": "333cc08e7eb64f2d5a72d16893fa4d83fda538e5f623d55a4eb4ffc09f0b6fe1",
-    "scripts/qpf/verify.mjs": "91ae3b420e8bbe19f56ffd91afc52e8fcc0a875da3e065d5194a7c9ece5f9ca8",
+    "scripts/qpf/verify.mjs": "cb7fdac9b40eaa62324469d2c2b9ce2e8547a9da6512c28456d32b506c554c77",
     "src/qpf/Qpf.tsx": "c473c10ae15c2a6bdf8cd6830dcfc55e151051029ec2eef37e68dab46fe593dd",
-    "src/qpf/controller.ts": "d3c0d63650671cfea47afafc48a153f12e6652cd4ee2d0b34c8a9d2f885c6cc4",
+    "src/qpf/controller.ts": "8c68edcdc45d1cf368eb4ccea8328b683fa1cc4aad8cf201fc7719bf465b6264",
     "src/qpf/model.ts": "e6dd8cebd40005a17add34e1af8ffa1d08e6c978595c79dc4994653ed3b7f9e9",
     "src/qpf/qpf.css": "62db30ad5ae2d0cdb8d20da8b916c94ea03942f97c2d4498a8f3fc758a1d0143"
   }

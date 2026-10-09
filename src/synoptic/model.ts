@@ -1,12 +1,13 @@
 import type { Box } from '../broadcast-graphics/ResizeBox';
 import type { BarStyles } from '../broadcast-graphics/barStyles';
 import type { FeatureCollection } from 'geojson';
-export type Family = 'surface' | 'severe' | 'tropical' | 'lightning' | 'analysis' | 'mrms';
+export type Family = 'surface' | 'severe' | 'tropical' | 'lightning' | 'analysis' | 'mrms' | 'futurecast';
 export interface Product { id: string; title: string; family: Family; source: string; kind: 'grid' | 'glm' | 'arcgis' | 'alerts' | 'surface' | 'manual'; field?: string; service?: string; match?: string; ageMinutes: number; units?: string; range?: [number, number]; }
 const arc = (id: string, title: string, family: Family, service: string, match: string, ageMinutes = 1440): Product => ({ id, title, family, kind: 'arcgis', source: family === 'tropical' ? 'NOAA / NHC' : 'NOAA / SPC', service, match, ageMinutes });
 const spc = 'https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/MapServer';
 const nhc = 'https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather/MapServer';
 export const PRODUCTS: Product[] = [
+ ...[['reflectivity','Simulated Reflectivity','REFC','dBZ',0,80],['temperature','2 m Temperature','TMP','°F',-20,120],['dewpoint','2 m Dewpoint','DPT','°F',-20,85]].map(([id,title,field,units,min,max])=>({id:`hrrr-${id}`,title:`HRRR Futurecast · ${title}`,family:'futurecast',kind:'grid',source:'NOAA HRRR · CONUS 3 km model forecast',field,units,range:[min,max],ageMinutes:360} as Product)),
  {id:'surface-national',title:'National Surface Analysis',family:'surface',kind:'surface',source:'NOAA / WPC',ageMinutes:360},
  {id:'surface-regional',title:'Regional Surface Analysis',family:'surface',kind:'surface',source:'NOAA / WPC',ageMinutes:360},
  {id:'surface-radar',title:'Fronts + Precipitation',family:'surface',kind:'surface',source:'NOAA / WPC',ageMinutes:360},
@@ -25,7 +26,7 @@ export const PRODUCTS: Product[] = [
  ...[['glm-flashes','Lightning Flashes'],['glm-density','Lightning Flash Density'],['glm-trend','Lightning Recent Activity'],['glm-radar','Lightning + Radar'],['glm-satellite','Lightning + Satellite']].map(([id,title])=>({id,title,family:'lightning',kind:'glm',source:'NOAA GOES-19 GLM · total lightning',ageMinutes:10} as Product)),
 ];
 export interface WeatherObject { id: string; kind: 'cold'|'warm'|'stationary'|'occluded'|'trough'|'dryline'|'H'|'L'|'text'|'arrow'|'hurricane'|'tropical-storm'; points: [number,number][]; text: string; origin: 'operator'|'WPC'; }
-export interface Frame { time: number; key: string; }
+export interface Frame { runTime?:number;forecastHour?:number;time: number; key: string; }
 export interface SceneSettings { productOverride?: string|null; barStyles?: BarStyles; barBoxes?: Partial<Record<'title'|'lower'|'status'|'storm',Box>>; titleLayout?: {x:number;y:number;width:number}; textOverrides?: Record<string,string>; title: string; subtitle: string; lower: string; opacity: number; titleVisible: boolean; legendVisible: boolean; labels: boolean; detailsVisible: boolean; objects: WeatherObject[]; windowMinutes: number; loop: boolean; background: 'none'|'radar'|'satellite'; forecastTime: string; storm: string; manualSurface: boolean; contours: boolean; }
 export const defaults = (): SceneSettings => ({title:'',subtitle:'',lower:'',opacity:.72,titleVisible:true,legendVisible:true,labels:true,detailsVisible:false,objects:[],windowMinutes:5,loop:true,background:'none',forecastTime:'',storm:'',manualSurface:false,contours:false});
 export interface Payload { timeLabel?: string; time: number|null; expires: number|null; data?: FeatureCollection; objects?: WeatherObject[]; image?: string; coordinates?: [number,number][]; legend?: {label:string;color:string}[]; note?: string; }

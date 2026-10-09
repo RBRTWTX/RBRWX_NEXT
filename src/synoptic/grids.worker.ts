@@ -9,7 +9,7 @@ self.onmessage = async (event: MessageEvent<{bytes:ArrayBuffer;product:Product;b
   let bytes=new Uint8Array(event.data.bytes);
   if(bytes[0]===31&&bytes[1]===139) bytes=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
   const fields=splitMessages(bytes).flatMap(parseFields);
-  const match:Record<string,[number,number]>={TMP:[0,0],DPT:[0,6],WIND:[2,1],PRES:[3,0]};
+  const match:Record<string,[number,number]>={TMP:[0,0],DPT:[0,6],WIND:[2,1],PRES:[3,0],REFC:[16,196]};
   const f=fields.find(f=> {const d=parseProduct(f.section4),want=match[p.field??''];return !want || (f.discipline===0 && d.parameterCategory===want[0]&&d.parameterNumber===want[1]);});
   if(!f) throw Error('Requested analyzed quantity absent from GRIB');
   const section=f.section3.slice(),v=new DataView(section.buffer);
@@ -22,6 +22,8 @@ self.onmessage = async (event: MessageEvent<{bytes:ArrayBuffer;product:Product;b
   if(regular&&(scan&0x3f)!==0)throw Error('Unsupported regular-grid scan order');
   const lat0=regular?signed(46)/1e6:0,lon0=regular?v.getUint32(50)/1e6:0,dx=regular?v.getUint32(63)/1e6:0,dy=regular?v.getUint32(67)/1e6:0;
   const t=f.identification,time=Date.UTC(t.year,t.month-1,t.day,t.hour,t.minute,t.second);
+  const definition=parseProduct(f.section4),unit=definition.indicatorOfUnitOfTimeRange,step=unit===1?3600000:unit===0?60000:unit===13?1000:NaN;
+  const validTime=time+(definition.forecastTime??0)*step;if(p.family==='futurecast'&&!Number.isFinite(validTime))throw Error('Unsupported forecast time unit');
   const rgba=new Uint8ClampedArray(width*height*4),values=new Float32Array(width*height).fill(NaN);
   const merc=(lat:number)=>Math.log(Math.tan(Math.PI/4+lat*Math.PI/360));const yn=merc(north),ys=merc(south);
   for(let y=0;y<height;y++)for(let x=0;x<width;x++){
@@ -42,6 +44,6 @@ self.onmessage = async (event: MessageEvent<{bytes:ArrayBuffer;product:Product;b
   }
   const interval=p.units==='hPa'?10:10;const [lo,hi]=p.range??[0,100];const levels=Array.from({length:Math.floor((hi-lo)/interval)+1},(_,i)=>lo+i*interval);
   const data=p.family==='analysis'?analyzedObjects(values,width,height,[west,south,east,north],levels):undefined;
-  self.postMessage({time,rgba,width,height,data}, {transfer:[rgba.buffer]});
+  self.postMessage({time,validTime,rgba,width,height,data}, {transfer:[rgba.buffer]});
  } catch(error){self.postMessage({error:error instanceof Error?error.message:String(error)});}
 };

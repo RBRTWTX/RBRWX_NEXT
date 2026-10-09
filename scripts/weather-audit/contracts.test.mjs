@@ -8,7 +8,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const expectedWarnings = new Set([
   'OBS-IDW-SURFACE',
   'RADAR-SWEEP-SYNTHETIC',
-  'FORECAST-FIXED-LOCATION',
+
 ]);
 
 test('implemented weather source contracts contain no unidentified FAIL condition', () => {

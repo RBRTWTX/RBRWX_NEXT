@@ -9,6 +9,10 @@ export function decodeGrid(f:GribField):Float64Array {
  const count=v.getUint32(5),reference=v.getFloat32(11),binary=2**signed(15),decimal=10**(-signed(17));
  if(f.section6&&f.section6[5]!==255)throw Error('PNG GRIB bitmap not supported; refusing incomplete data');
  if(v.getUint8(19)===0)return new Float64Array(count).fill(reference*decimal);
- const png=decodePng(f.section7.subarray(5));if(png.channels!==1||png.data.length!==count)throw Error('PNG GRIB dimensions/channels differ from numeric sample count');
- return Float64Array.from(png.data,s=>(reference+s*binary)*decimal);
+ const png=decodePng(f.section7.subarray(5)),bits=v.getUint8(19),channels=bits===24?3:bits===32?4:1;
+ // WMO 7.41: RGB/RGBA bytes form one unsigned 24/32-bit number, not display color.
+ if(png.channels!==channels||png.data.length!==count*channels||png.depth!==(channels===1?bits:8))throw Error('PNG GRIB dimensions/channels differ from numeric sample count');
+ const values=new Float64Array(count);
+ for(let i=0;i<count;i++){let sample=0;for(let c=0;c<channels;c++)sample=sample*(channels===1?1:256)+png.data[i*channels+c];values[i]=(reference+sample*binary)*decimal;}
+ return values;
 }

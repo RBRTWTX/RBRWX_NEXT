@@ -1,3 +1,4 @@
+import type {HistoryAction} from '../broadcast-graphics/sceneDocuments';
 import {EditableText} from '../broadcast-graphics/EditableText';
 export {EditableText} from '../broadcast-graphics/EditableText';
 import {ResizeBox} from '../broadcast-graphics/ResizeBox';
@@ -16,11 +17,11 @@ export function layoutAfterDrag(start:TitleLayout,dx:number,dy:number,corner:str
  const change=width/start.width;
  return {width,x:sx<0?start.x+start.width-width:start.x,y:sy<0?start.y+box.height/canvas.height*100*(1-change):start.y};
 }
-export function TitleBar({settings,title,time,legend,edit,appearance}:{settings:SceneSettings;title:string;time:string;appearance?:{design?:string;style?:CSSProperties};legend?:{color:string;label:string}[];edit?:(patch:Partial<SceneSettings>)=>void}){
+export function TitleBar({history,settings,title,time,legend,edit,appearance}:{history?:(action:HistoryAction)=>void;settings:SceneSettings;title:string;time:string;appearance?:{design?:string;style?:CSSProperties};legend?:{color:string;label:string}[];edit?:(patch:Partial<SceneSettings>)=>void}){
  const layout=settings.barBoxes?.title??{...titleLayout(),...settings.titleLayout};
  const text=(id:string,value:string)=>settings.textOverrides?.[id]??value;
  const save=(id:string)=>edit?(value:string)=>edit({textOverrides:{...settings.textOverrides,[id]:value}}):undefined;
- return <ResizeBox className="synoptic-title-frame" label="title" box={layout} textOnly={settings.barStyles?.title?.textSizing}
+ return <ResizeBox history={history} className="synoptic-title-frame" label="title" box={layout} textOnly={settings.barStyles?.title?.textSizing}
  style={{'--box-width-compensation':94/layout.width} as CSSProperties}
  edit={edit?box=>edit({barBoxes:{...settings.barBoxes,title:box}}):undefined}>
   <header className="synoptic-title" data-bar-design={appearance?.design} style={appearance?.style}>

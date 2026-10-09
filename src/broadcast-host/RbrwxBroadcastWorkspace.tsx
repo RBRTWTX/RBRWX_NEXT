@@ -3,7 +3,7 @@ import{IconButton,ToolIcon}from'./OnAirIcons';
 import{SessionControls}from'./SessionControls';
 import{useMenuPosition}from'./menuPosition';
 import{ProgramMirror,useProgramMirror,type MirrorFrame}from'./ProgramMirror';
-import {OnAirMenu,useOnAirCommands,BroadcastToolButtons,HiddenPlayback} from './OnAirMenu';
+import {OnAirMenu,useOnAirCommands,BroadcastToolButtons,HiddenPlayback,usePlaybackState,useLayerPresets,PlaybackButtons,type PlaybackState} from './OnAirMenu';
 import {OnAirProvider,LiveOnAirDrawing,useOnAirTools} from '../synoptic/OnAirTools';
 import {EwxControls,LiveEwxScroll,useEwxAlerts} from '../current-weather/EwxAlerts';
 import { SynopticHost, SynopticOverlay, SynopticControls, SynopticPlayback, useSynoptic } from '../synoptic/Scene';
@@ -64,6 +64,7 @@ interface CapturePresentationState {
   ewx?: { enabled: boolean };
   radar?: {enabled:boolean;sweeps:boolean};
   overlays?:Record<string,boolean>;
+  playback?:PlaybackState; presets?:Record<string,string>;
 }
 
 const healthLabel: Record<MapHealth, string> = {
@@ -375,7 +376,8 @@ function OperatorWorkspace({
   const radar = useRadarOverlay();
   const ewx = useEwxAlerts();
   const tools=useOnAirTools();
-  const onAirCommand=useOnAirCommands();
+  const onAirCommand=useOnAirCommands(),playback=usePlaybackState(),presets=useLayerPresets();
+  const actionHandler=useRef(onAirCommand);actionHandler.current=onAirCommand;
   const forecast = useForecastGraphics();
   const qpf = useQpf();
   const synoptic = useSynoptic();
@@ -385,6 +387,7 @@ function OperatorWorkspace({
   const [contentTab, setContentTab] = useState<ContentTab>('scenes');
   const [popoutMessage, setPopoutMessage] = useState('');
   useEffect(()=>{let stopped=false;const check=async()=>{try{const open=await invoke<boolean>('canvas_window_open');if(!stopped&&typeof open==='boolean')setPopoutMessage(open?'CANVAS WINDOW OPEN':'');}catch{}};void check();const timer=setInterval(()=>void check(),2000);return()=>{stopped=true;clearInterval(timer);};},[]);
+  useEffect(()=>{const key=(event:KeyboardEvent)=>{const target=event.target as HTMLElement|null;if(target?.isContentEditable||target?.closest('input,textarea,select')||!(event.ctrlKey||event.metaKey))return;const k=event.key.toLowerCase();if(k==='z'||k==='y'){event.preventDefault();onAirCommand(k==='y'||event.shiftKey?'edit:redo':'edit:undo');}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[onAirCommand]);
   const zoomLabel = useMemo(() => camera.zoom.toFixed(1), [camera.zoom]);
 
   const toggle = useCallback((group: BroadcastLayerGroup) => {
@@ -397,32 +400,15 @@ function OperatorWorkspace({
   }, []);
 
   useProgramMirror(synoptic.map, popoutMessage==='CANVAS WINDOW OPEN', async mirror=>{
-    await invoke('set_canvas_state',{state:{schema:1,mirror,hiddenMenuAvailable,ewx:{enabled:ewx.state.enabled},radar:{enabled:radar.enabled,sweeps:radar.options.sweepsEnabled!==false},overlays:tools.enabled}});
-  });
+    await invoke('set_canvas_state',{state:{schema:1,mirror,hiddenMenuAvailable,ewx:{enabled:ewx.state.enabled},radar:{enabled:radar.enabled,sweeps:radar.options.sweepsEnabled!==false},overlays:tools.enabled,playback,presets}});
+  },JSON.stringify({hiddenMenuAvailable,ewx:ewx.state.enabled,radar:radar.enabled,sweeps:radar.options.sweepsEnabled,overlays:tools.enabled,playback,presets}));
 
   useEffect(() => {
     let cancelled = false;
     let busy = false;
     const apply = (action: OperatorAction) => {
-      if(onAirCommand(action))return;
-      if (radar.enabled && action === 'previous') radar.controller.step(-1);
-      else if (radar.enabled && action === 'next') radar.controller.step(1);
-      else if (radar.enabled && action === 'play-pause') radar.controller.play();
-      else if (radar.enabled && action === 'loop') radar.edit({loop:!radar.options.loop});
-      else if (synoptic.active && action === 'previous') synoptic.step(-1);
-      else if (synoptic.active && action === 'next') synoptic.step(1);
-      else if (synoptic.active && action === 'play-pause') synoptic.play();
-      else if (synoptic.active && action === 'loop') synoptic.edit({loop:!synoptic.snapshot.settings.loop});
-      else if (['radar','satellite'].includes(weather.product)&&action==='previous') weather.controller.step(-1);
-      else if (['radar','satellite'].includes(weather.product)&&action==='next') weather.controller.step(1);
-      else if (['radar','satellite'].includes(weather.product)&&action==='play-pause') weather.controller.play();
-      else if (['radar','satellite'].includes(weather.product)&&action==='loop') weather.edit({loop:!weather.options.loop});
-      else if (action === 'previous') broadcast.previous();
-      else if (action === 'play-pause') broadcast.state.transport === 'playing' ? broadcast.pause() : broadcast.play();
-      else if (action === 'next') broadcast.next();
-      else if (action === 'loop') broadcast.setLoop(!broadcast.state.loop);
-      else if (action === 'refresh') void (radar.enabled ? radar.controller.refresh() : synoptic.active ? synoptic.controller.refresh() : qpf.active ? qpf.controller.refresh() : forecast.active ? forecast.refreshData() : weather.controller.refresh());
-      else if (action === 'hide-menu') setHiddenMenuAvailable(false);
+      if(actionHandler.current(action))return;
+      if (action === 'hide-menu') setHiddenMenuAvailable(false);
     };
     const poll = async () => {
       if (busy || cancelled) return;
@@ -439,7 +425,7 @@ function OperatorWorkspace({
     void poll();
     const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [onAirCommand,radar,forecast,broadcast, synoptic, qpf.active, qpf.controller, setHiddenMenuAvailable, weather]);
+  }, [setHiddenMenuAvailable]);
 
   return <main className="app-shell rbrwx-broadcast-workspace">
     <header className="topbar operator-topbar">
@@ -549,7 +535,7 @@ export function RbrwxBroadcastWorkspace() {
   return captureMode ? <RbrwxCanvasCaptureWorkspace /> : <RbrwxOperatorWorkspaceRoot />;
 }
 
-function CaptureHiddenMenu({ available,ewx,radar,overlays }: { available: boolean;ewx?:boolean;radar?:{enabled:boolean;sweeps:boolean};overlays?:Record<string,boolean> }) {
+function CaptureHiddenMenu({ available,ewx,radar,overlays,playback,presets }: { available: boolean;ewx?:boolean;radar?:{enabled:boolean;sweeps:boolean};overlays?:Record<string,boolean>;playback?:PlaybackState;presets?:Record<string,string> }) {
   const [open, setOpen] = useState(false);
   const menuStyle=useMenuPosition();
   if (!available) return null;
@@ -557,20 +543,14 @@ function CaptureHiddenMenu({ available,ewx,radar,overlays }: { available: boolea
   return <div className="canvas-hidden-menu canvas-hidden-menu--capture onair-wide" style={menuStyle}>
     <button className="canvas-hidden-menu__trigger" type="button" aria-label="Open RBRTW hidden canvas menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>RBRTW</button>
     {open && <div className="canvas-hidden-menu__panel" role="group">
-      <BroadcastToolButtons command={action} ewx={ewx} draw={false} radar={radar?.enabled} sweeps={radar?.sweeps} enabled={overlays}/>
-      <div className="onair-playback" aria-label="Hidden menu playback">
-        <IconButton icon="previous" label="Previous weather frame" onClick={()=>action('previous')}/>
-        <IconButton icon="play" label="Play / pause weather" onClick={()=>action('play-pause')}/>
-        <IconButton icon="next" label="Next weather frame" onClick={()=>action('next')}/>
-        <IconButton icon="loop" label="Toggle playback loop" onClick={()=>action('loop')}/>
-        <IconButton icon="refresh" label="Refresh weather" onClick={()=>action('refresh')}/>
-      </div>
+      <BroadcastToolButtons presets={presets} command={action} ewx={ewx} draw={false} radar={radar?.enabled} sweeps={radar?.sweeps} enabled={overlays}/>
+      {playback&&<PlaybackButtons state={playback} command={action}/>}
       <IconButton icon="hide" label="Hide RBRTW button" onClick={()=>{setOpen(false);action('hide-menu');}}/>
     </div>}
   </div>;
 }
 
-function CaptureWeatherCanvas({state}:{state:CapturePresentationState}){return <section className="capture-canvas-stage">{state.mirror?<ProgramMirror frame={state.mirror}/>:<div className="mirror-stalled">WAITING FOR LIVE PROGRAM</div>}<CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled} radar={state.radar} overlays={state.overlays}/></section>;}
+function CaptureWeatherCanvas({state}:{state:CapturePresentationState}){return <section className="capture-canvas-stage">{state.mirror?<ProgramMirror frame={state.mirror}/>:<div className="mirror-stalled">WAITING FOR LIVE PROGRAM</div>}<CaptureHiddenMenu available={state.hiddenMenuAvailable} ewx={state.ewx?.enabled} radar={state.radar} overlays={state.overlays} playback={state.playback} presets={state.presets}/></section>;}
 
 export function RbrwxCanvasCaptureWorkspace() {
   const [state, setState] = useState<CapturePresentationState | null>(null);

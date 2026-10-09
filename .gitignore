@@ -26,3 +26,7 @@ asset-library/svg/*
 
 # Local compiled desktop launcher state (never source or operator settings).
 .rbrwx-launcher/
+
+# Local rendering evidence and versioned Windows builds
+/render-results/
+/releases/

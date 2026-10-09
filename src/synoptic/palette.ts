@@ -19,6 +19,7 @@ export function stops(p:Product):{value:number;color:string}[]{
 export function colorFor(p:Product,value:number):number[]|null{
  if(!Number.isFinite(value)||value<=-99)return null;
  if(p.id==='mrms-type'){const entry=PRECIP_TYPES.find(x=>x.value===value);return entry?rgb(entry.color):null;}
+ if(p.family==='futurecast'&&p.units==='dBZ'&&value<=0)return null;
  if(p.family==='mrms'&&p.id!=='mrms-shear'&&value<=0)return null;
  const table=stops(p),i=Math.max(0,table.findIndex(x=>x.value>=value));
  if(value<=table[0].value)return rgb(table[0].color);if(value>=table.at(-1)!.value)return rgb(table.at(-1)!.color);

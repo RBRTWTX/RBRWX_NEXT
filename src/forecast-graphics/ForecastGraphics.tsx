@@ -1,3 +1,7 @@
+import {FORECAST_LOCATIONS,validLocation,type ForecastLocation} from './locations';
+import {EditableText} from '../broadcast-graphics/EditableText';
+import {EditHistory} from '../broadcast-graphics/EditHistory';
+import {useSceneRecords,type HistoryAction} from '../broadcast-graphics/sceneDocuments';
 import { invoke } from '@tauri-apps/api/core';
 import {
   createContext,
@@ -33,6 +37,8 @@ interface SceneState {
 }
 
 interface ForecastGraphicsModel {
+  location:ForecastLocation;setLocation:(location:ForecastLocation)=>void;
+  history:(action:HistoryAction)=>void;
   active: boolean;
   sceneId: string | null;
   title: string;
@@ -97,7 +103,10 @@ export function ForecastGraphicsProvider({
 }) {
   const template = templateForContent(contentKey);
   const active = isForecastGraphicContent(contentKey) && template !== null && sceneId !== null;
-  const [scenes, setScenes] = useState<Record<string, SceneState>>(initialStoredScenes);
+  const [scenes, setScenes, history] = useSceneRecords<SceneState>('forecast',initialStoredScenes);
+  const [locations,setLocations]=useSceneRecords<ForecastLocation>('forecast-locations',()=>({}));
+  const location=locations[sceneId??'startup']??FORECAST_LOCATIONS[0];
+  const setLocation=(next:ForecastLocation)=>{if(sceneId&&validLocation(next))setLocations(old=>({...old,[sceneId]:next}));};
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [data, setData] = useState<ForecastGraphicsData | null>(null);
   const [status, setStatus] = useState<ForecastGraphicsModel['status']>('loading');
@@ -120,10 +129,6 @@ export function ForecastGraphicsProvider({
     setSelectedId(null);
   }, [sceneId]);
 
-  useEffect(() => {
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(scenes)); } catch { /* editing remains usable without persistence */ }
-  }, [scenes]);
-
   const loadData = useCallback(() => {
     dataAbort.current?.abort();
     const abort = new AbortController();
@@ -131,22 +136,25 @@ export function ForecastGraphicsProvider({
     const previous = dataRef.current;
     setStatus(previous ? 'stale' : 'loading');
     setMessage(previous ? 'Refreshing NWS forecast…' : 'Loading NWS forecast…');
-    void loadForecastGraphicsData(abort.signal).then(next => {
+    void loadForecastGraphicsData(abort.signal,location).then(next => {
       if (abort.signal.aborted) return;
       setData(next);
       setStatus('ready');
       setMessage(`NWS forecast · ${next.locationName}`);
     }).catch(error => {
       if (abort.signal.aborted) return;
-      setStatus(dataRef.current ? 'stale' : 'unavailable');
+      const retained=dataRef.current&&Date.now()-dataRef.current.updatedAt<=24*3600000;
+      if(!retained){dataRef.current=null;setData(null);}
+      setStatus(retained ? 'stale' : 'unavailable');
       setMessage(`NWS forecast unavailable: ${error instanceof Error ? error.message : String(error)}`);
     });
-  }, []);
+  }, [location.lat,location.lon,location.name]);
 
   const needsForecastData = active && template !== 'blank' && template !== 'need-to-know';
 
   useEffect(() => {
     if (!needsForecastData) return;
+    dataRef.current=null;setData(null);
     loadData();
     const timer = window.setInterval(loadData, 10 * 60 * 1000);
     return () => { window.clearInterval(timer); dataAbort.current?.abort(); };
@@ -261,7 +269,7 @@ export function ForecastGraphicsProvider({
     return () => window.removeEventListener('keydown', keydown);
   }, [active, deleteObject, selectedId]);
 
-  const renderObjects = useMemo<ForecastGraphicRenderObject[]>(() => objects.map(item => ({ ...item, displayText: displayText(item, data) })), [data, objects]);
+  const renderObjects = useMemo<ForecastGraphicRenderObject[]>(() => objects.map(item => ({ ...item, displayText: item.autoKey==='location'&&!data?location.name:item.autoKey==='updated'&&!needsForecastData?'OPERATOR GRAPHIC':displayText(item, data) })), [data, objects,location.name,needsForecastData]);
   const snapshot = useMemo<ForecastGraphicsSnapshot>(() => ({
     active,
     sceneId: active ? sceneId : null,
@@ -271,6 +279,8 @@ export function ForecastGraphicsProvider({
   }), [active, renderObjects, sceneId, template, title]);
 
   const value = useMemo<ForecastGraphicsModel>(() => ({
+    location,setLocation,
+    history:action=>{if(sceneId&&template)history(sceneId,action,{template,objects:freshSceneObjects(template)});},
     active, sceneId, title, template, data, status, message, objects, selectedId, snapshot, assets,
     select: setSelectedId,
     updateObject,
@@ -286,7 +296,7 @@ export function ForecastGraphicsProvider({
     showTitle,
     refreshData: loadData,
     refreshAssets,
-  }), [active, addAsset, addIcon, addShape, addText, assets, bringSelectedFront, data, deleteObject, duplicateSelected, loadData, message, objects, sceneId, selectedId, sendSelectedBack, snapshot, status, template, title, updateObject, resetScene, showTitle, refreshAssets]);
+  }), [active, addAsset, addIcon, addShape, addText, assets, bringSelectedFront, data, deleteObject, duplicateSelected, loadData, message, objects, sceneId, selectedId, sendSelectedBack, snapshot, status, template, title, updateObject, resetScene, showTitle, refreshAssets, history,location]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
@@ -337,55 +347,12 @@ function ObjectBody({ item, value, editing, beginEdit, commit, cancelEdit }: {
   cancelEdit?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (editing && ref.current) {
-      ref.current.textContent = value;
-      ref.current.focus();
-      const range = document.createRange();
-      range.selectNodeContents(ref.current);
-      range.collapse(false);
-      const selection = window.getSelection();
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    }
-  }, [editing, value]);
-
-  useLayoutEffect(()=>{const node=ref.current;if(!node||editing)return;const fit=()=>{node.style.removeProperty('font-size');node.style.alignContent='center';node.style.lineHeight='1.16';let size=parseFloat(getComputedStyle(node).fontSize)*(item.fontScale??1);node.style.fontSize=`${size}px`;for(let i=0;i<45&&(node.scrollHeight>node.clientHeight+1||node.scrollWidth>node.clientWidth+1);i++){size*=.94;node.style.fontSize=`${size}px`;}node.style.alignContent='center';};fit();const observer=new ResizeObserver(fit);observer.observe(node);return()=>observer.disconnect();},[value,item.w,item.h,item.style,item.fontScale,editing]);
+  useLayoutEffect(()=>{const node=ref.current?.querySelector<HTMLElement>('.forecast-object__text');if(!node||editing)return;const fit=()=>{node.style.removeProperty('font-size');node.style.alignContent='center';node.style.lineHeight='1.16';let size=parseFloat(getComputedStyle(node).fontSize)*(item.fontScale??1);node.style.fontSize=`${size}px`;for(let i=0;i<45&&(node.scrollHeight>node.clientHeight+1||node.scrollWidth>node.clientWidth+1);i++){size*=.94;node.style.fontSize=`${size}px`;}node.style.alignContent='center';};fit();const observer=new ResizeObserver(fit);observer.observe(node);return()=>observer.disconnect();},[value,item.w,item.h,item.style,item.fontScale,editing]);
   if (item.kind === 'asset' && item.assetPath) return <AssetImage relativePath={item.assetPath} />;
   if (item.kind === 'shape') return null;
 
-  const multiline = item.kind === 'textbox';
-  return <div
-    ref={ref}
-    className="forecast-object__text"
-    contentEditable={editing}
-    suppressContentEditableWarning
-    spellCheck={false}
-    onDoubleClick={event => { event.stopPropagation(); beginEdit?.(); }}
-    onPointerDown={event => { if (editing) event.stopPropagation(); }}
-    onKeyDown={event => {
-      if (!editing) return;
-      event.stopPropagation();
-      if (event.key === 'Escape') { event.preventDefault(); cancelEdit?.(); event.currentTarget.blur(); }
-      else if (!multiline && event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); }
-    }}
-    onBlur={event => { if (editing) commit?.(event.currentTarget.textContent ?? ''); }}
-    onPaste={event => {
-      if (!editing) return;
-      event.preventDefault();
-      const pasted = multiline ? event.clipboardData.getData('text/plain') : event.clipboardData.getData('text/plain').replace(/[\r\n]+/g, ' ');
-      const selection = window.getSelection();
-      if (!selection?.rangeCount) return;
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
-      const node = document.createTextNode(pasted);
-      range.insertNode(node);
-      range.setStartAfter(node);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }}
-  >{editing ? undefined : value}</div>;
+  return <div ref={ref} style={{width:'100%',height:'100%'}}><EditableText as="div" label={item.label} className="forecast-object__text" value={value} multiline={item.kind==='textbox'} edit={commit} onEditingChange={active=>{if(active)beginEdit?.();else cancelEdit?.();}} /></div>;
+
 }
 
 function EditableObject({ item, scale }: { item: ForecastGraphicObject; scale: number }) {
@@ -403,12 +370,13 @@ function EditableObject({ item, scale }: { item: ForecastGraphicObject; scale: n
     event.stopPropagation();
     graphics.select(item.id);
     gesture.current = { pointerId: event.pointerId, mode, startX: event.clientX, startY: event.clientY, start: { ...item } };
-    event.currentTarget.setPointerCapture(event.pointerId);
+
   };
 
   const moveGesture = (event: PointerEvent<HTMLDivElement>) => {
     const g = gesture.current;
-    if (!g || g.pointerId !== event.pointerId) return;
+    if (!g || g.pointerId !== event.pointerId || Math.hypot(event.clientX-g.startX,event.clientY-g.startY)<3) return;
+    if(!event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
     const dx = (event.clientX - g.startX) / scale;
     const dy = (event.clientY - g.startY) / scale;
@@ -458,7 +426,7 @@ function EditableObject({ item, scale }: { item: ForecastGraphicObject; scale: n
       <label>Text size<input aria-label={`${item.label} text size`} type="range" min="25" max="400" value={Math.round((item.fontScale??1)*100)} onChange={e=>graphics.updateObject(item.id,{fontScale:Number(e.target.value)/100})}/></label>
       <label>Width<input aria-label={`${item.label} width`} type="range" min="40" max={Math.max(40,(1920-item.x)/(item.scale??1))} value={item.w} onChange={e=>graphics.updateObject(item.id,{w:Number(e.target.value)})}/></label>
       <label>Height<input aria-label={`${item.label} height`} type="range" min="24" max={Math.max(24,(1080-item.y)/(item.scale??1))} value={item.h} onChange={e=>graphics.updateObject(item.id,{h:Number(e.target.value)})}/></label>
-      <button onClick={()=>setControls(false)}>Done</button>
+      <EditHistory act={graphics.history}/><button onClick={()=>setControls(false)}>Done</button>
     </div>}
     {selected && !editing && <div
       className="forecast-resize-handle"
@@ -535,7 +503,7 @@ export function ForecastGraphicEditorStage() {
   return <section ref={ref} className="forecast-graphic-stage forecast-graphic-stage--editor" aria-label={`${graphics.title} graphic editor`} onPointerDown={event => { if (event.target === event.currentTarget) graphics.select(null); }}>
     <div className="forecast-graphic-design" style={{ left: layout.left, top: layout.top, transform: `scale(${layout.scale})` }} onPointerDown={event => { if (event.target === event.currentTarget) graphics.select(null); }}>
       <div className="forecast-graphic-background" />
-      {graphics.objects.slice().sort((a, b) => a.z - b.z).map(item => <EditableObject key={item.id} item={item} scale={layout.scale} />)}
+      {graphics.objects.slice().sort((a, b) => a.z - b.z).map(item => <EditableObject key={`${graphics.sceneId}:${item.id}`} item={item} scale={layout.scale} />)}
     </div>
     <AddMenu />
 
@@ -598,4 +566,11 @@ export function ForecastGraphicObjectList() {
     ><span>{item.kind.toUpperCase()}</span><b>{item.label}</b></button>)}
     {!graphics.objects.length && <div className="operator-object-list__row"><span>Canvas</span><b>BLANK</b></div>}
   </>;
+}
+
+export function ForecastLocationControls(){
+ const g=useForecastGraphics();const [custom,setCustom]=useState(g.location);
+ useEffect(()=>setCustom(g.location),[g.location]);
+ if(!g.active)return null;
+ return <details><summary>Forecast location: {g.location.name}</summary><label>Community<select aria-label="Forecast community" value={FORECAST_LOCATIONS.findIndex(p=>p.lat===g.location.lat&&p.lon===g.location.lon)} onChange={e=>{const p=FORECAST_LOCATIONS[Number(e.target.value)];if(p)g.setLocation(p);}}><option value="-1">Custom coordinates</option>{FORECAST_LOCATIONS.map((p,i)=><option key={p.name} value={i}>{p.name}</option>)}</select></label><label>Name<input maxLength={80} value={custom.name} onChange={e=>setCustom({...custom,name:e.target.value})}/></label><label>Latitude<input type="number" min="-90" max="90" step=".0001" value={custom.lat} onChange={e=>setCustom({...custom,lat:Number(e.target.value)})}/></label><label>Longitude<input type="number" min="-180" max="180" step=".0001" value={custom.lon} onChange={e=>setCustom({...custom,lon:Number(e.target.value)})}/></label><button disabled={!validLocation(custom)} onClick={()=>g.setLocation(custom)}>Apply location</button></details>;
 }

@@ -1,0 +1,12 @@
+import fs from 'node:fs';import path from 'node:path';import cp from 'node:child_process';import {createHash} from 'node:crypto';
+if(process.platform!=='win32')throw Error('Build Windows releases on the Windows acceptance PC.');
+const root=process.cwd(),version=JSON.parse(fs.readFileSync('package.json')).version;
+const run=(command,args)=>{const r=cp.spawnSync(command,args,{cwd:root,stdio:'inherit',shell:command==='npm.cmd'});if(r.status!==0)throw Error(`${command} failed (${r.status})`);};
+run('npm.cmd',['run','verify']);run('cargo',['check','--locked','--manifest-path','src-tauri/Cargo.toml']);run('npm.cmd',['run','tauri','--','build','--no-bundle']);
+const out=path.join(root,'releases',`RBRWX_NEXT_${version}_Windows`);if(fs.existsSync(out))throw Error(`Release folder exists: ${out}. Preserve or rename it before rebuilding.`);fs.mkdirSync(out,{recursive:true});
+fs.copyFileSync('src-tauri/target/release/rbrwx-next.exe',path.join(out,'RBRWX_NEXT.exe'));
+if(fs.existsSync('asset-library'))fs.cpSync('asset-library',path.join(out,'asset-library'),{recursive:true});
+fs.writeFileSync(path.join(out,'START.cmd'),'@echo off\r\ncd /d "%~dp0"\r\nstart "" "%~dp0RBRWX_NEXT.exe"\r\n');
+fs.writeFileSync(path.join(out,'README.txt'),`RBRWX NEXT ${version}\r\nRun START.cmd. Windows WebView2 is required. Internet is required for weather data.\r\nThis is a release candidate until the Windows acceptance checklist is completed.\r\n`);
+const files={};function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const full=path.join(dir,e.name);if(e.isDirectory())walk(full);else files[path.relative(out,full).replaceAll('\\','/')]=createHash('sha256').update(fs.readFileSync(full)).digest('hex');}}walk(out);
+fs.writeFileSync(path.join(out,'RELEASE.json'),JSON.stringify({version,status:'candidate',builtAt:new Date().toISOString(),git:cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),sourceDirty:!!cp.execFileSync('git',['status','--porcelain'],{encoding:'utf8'}).trim(),sourceDiffSha256:createHash('sha256').update(cp.execFileSync('git',['diff','HEAD','--binary'])).digest('hex'),files},null,2));const zip=out+'.zip';if(fs.existsSync(zip))throw Error(`Release ZIP exists: ${zip}`);run('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Compress-Archive -LiteralPath '${out.replaceAll("'","''")}' -DestinationPath '${zip.replaceAll("'","''")}'`]);console.log(`Windows candidate built: ${zip}`);
