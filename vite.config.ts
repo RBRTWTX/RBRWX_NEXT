@@ -24,6 +24,6 @@ export default defineConfig({
   build: {
     target: 'es2022',
     minify: 'oxc',
-    sourcemap: true,
+    sourcemap: process.env.RBRWX_SOURCE_MAPS === '1',
   },
 });

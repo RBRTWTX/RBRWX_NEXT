@@ -1,4 +1,4 @@
-import { splitMessages, parseFields, parseProduct, parseGrid, nearestGridpoint, decodeFieldValues } from '@azohra/meteo.grib';
+import { splitMessages, parseFields, parseProduct, parseGrid, nearestGridpoint } from '@azohra/meteo.grib';
 import {analyzedObjects} from './contours';
 import {colorFor} from './palette';
 import { decodeGrid } from './decode';

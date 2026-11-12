@@ -41,11 +41,26 @@ export function currentExecutable(repo, fingerprint) {
   } catch { return null; }
 }
 
+// Only UUID executables created by this launcher are eligible for pruning.
+const launcherBinary = /^rbrwx-next-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.exe$/i;
+function prunePublishedCopies(dir, current, previous) {
+  if (!launcherBinary.test(previous ?? '')) return;
+  try {
+    if (!fs.lstatSync(dir).isDirectory()) return;
+    for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
+      if (!entry.isFile() || !launcherBinary.test(entry.name) || entry.name === current || entry.name === previous) continue;
+      try { fs.unlinkSync(path.join(dir, entry.name)); } catch { /* Locked old instances are retried on the next build. */ }
+    }
+  } catch { /* Cache cleanup must never prevent launch. */ }
+}
+
 // Publish only after every build gate succeeds. A failed rebuild preserves the prior file.
 export function publishExecutable(repo, fingerprint, builtFile) {
   if (sourceFingerprint(repo) !== fingerprint) throw new Error('Source changed during the build. Please launch again.');
   const dir = path.join(repo, '.rbrwx-launcher');
   fs.mkdirSync(dir, { recursive: true });
+  let previous;
+  try { previous = JSON.parse(fs.readFileSync(path.join(dir,'current.json'),'utf8')).file; } catch { /* First publication. */ }
   const file = `rbrwx-next-${randomUUID()}.exe`;
   const target = path.join(dir, file);
   fs.copyFileSync(builtFile, target, fs.constants.COPYFILE_EXCL);
@@ -53,6 +68,7 @@ export function publishExecutable(repo, fingerprint, builtFile) {
   const temporary = path.join(dir, `current-${randomUUID()}.tmp`);
   fs.writeFileSync(temporary, JSON.stringify(state, null, 2) + '\n');
   fs.renameSync(temporary, path.join(dir, 'current.json'));
+  prunePublishedCopies(dir, file, previous);
   return target;
 }
 

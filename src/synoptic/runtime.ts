@@ -1,13 +1,11 @@
 import {DecodeWorker} from './DecodeWorker';
-import {checkModelTime,HRRR_MAX_RUN_AGE} from './futurecast';
+import {checkModelTime} from './futurecast';
 import { publishedTimes, imageRequest, services } from '../current-weather/public-imagery';
-import type { Map as WeatherMap, GeoJSONSource } from 'maplibre-gl';
+import type { Map as WeatherMap } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import { gridBytes, gridFrames, keys, BUCKETS, response, vectorPayload, surfacePayload } from './providers';
 import { legendFor } from './palette';
-import { emptyPack, type PackSnapshot, type Product, type SceneSettings, type Payload, type Frame } from './model';
-const SOURCE='rbrwx-synoptic',LAYERS=['rbrwx-synoptic-fill','rbrwx-synoptic-line','rbrwx-synoptic-point','rbrwx-synoptic-label'];
-const EMPTY:FeatureCollection={type:'FeatureCollection',features:[]};
+import { emptyPack, type PackSnapshot, type Product, type SceneSettings, type Payload } from './model';
 export class SynopticRuntime {
  map:WeatherMap|null=null;snapshot=emptyPack();private product:Product|null=null;private abort:AbortController|null=null;private generation=0;private timer:ReturnType<typeof setInterval>|null=null;private moveTimer:ReturnType<typeof setTimeout>|null=null;private imageIds:string[]=[];private glmCache:Payload|null=null;private imageSerial=0;private gridCache=new Map<string,Payload>();
  private gridWorker=new DecodeWorker(()=>new Worker(new URL('./grids.worker.ts',import.meta.url),{type:'module'}));
@@ -18,7 +16,10 @@ export class SynopticRuntime {
  connect(map:WeatherMap){this.map=map;map.on('moveend',this.move);this.timer=setInterval(()=>{const p=this.snapshot.payload;if(p?.expires&&Date.now()>=p.expires){this.abort?.abort();++this.generation;this.clear();this.emit({payload:null,backgroundPayload:null,status:'UNAVAILABLE · displayed product expired'});}const bg=this.snapshot.backgroundPayload;if(bg?.expires&&Date.now()>=bg.expires){this.removeChannel('background');this.emit({backgroundPayload:null});}},1000);if(this.product)void this.refresh();return()=>this.disconnect();}
  disconnect(){this.abort?.abort();this.gridWorker.destroy();this.glmWorker.destroy();this.gridCache.clear();this.glmCache=null;++this.generation;if(this.timer)clearInterval(this.timer);if(this.moveTimer)clearTimeout(this.moveTimer);this.map?.off('moveend',this.move);this.clear();this.map=null;}
  private move=()=>{if(this.moveTimer)clearTimeout(this.moveTimer);this.moveTimer=setTimeout(()=>{if(this.product&&(this.product.kind==='grid'||this.snapshot.settings.background!=='none'))void this.loadFrame(this.snapshot.index);},450);};
- select(product:Product|null,settings:SceneSettings){const changed=product?.id!==this.product?.id;this.product=product;if(changed){this.gridCache.clear();this.glmCache=null;this.abort?.abort();++this.generation;this.clear();this.emit({...emptyPack(),productId:product?.id??null,settings,status:product?'Waiting for map…':'OFF'});if(product&&this.map)void this.refresh();}else{this.emit({settings});this.apply();}}
+ select(product:Product|null,settings:SceneSettings){const changed=product?.id!==this.product?.id;this.product=product;if(changed){this.gridCache.clear();this.glmCache=null;this.abort?.abort();++this.generation;this.clear();this.emit({...emptyPack(),productId:product?.id??null,settings,status:product?'Waiting for map…':'OFF'});if(product&&this.map)void this.refresh();}else{
+   const prev=this.snapshot.settings;this.emit({settings});
+   if(prev.opacity!==settings.opacity||prev.contours!==settings.contours||prev.storm!==settings.storm||prev.labels!==settings.labels)this.apply();
+  }}
  private removeChannel(channel:string){const m=this.map;if(!m)return;for(const id of this.imageIds.filter(x=>x.includes(`-${channel}-`))){if(m.getLayer(id))m.removeLayer(id);if(m.getSource(id))m.removeSource(id);}this.imageIds=this.imageIds.filter(x=>!x.includes(`-${channel}-`));}
  private clear(){const m=this.map;if(!m)return;for(const id of [...this.layers,...this.imageIds])if(m.getLayer(id))m.removeLayer(id);for(const id of [this.source,...this.imageIds])if(m.getSource(id))m.removeSource(id);this.imageIds=[];}
  private apply(){const m=this.map;if(!m)return;const s=this.snapshot.settings;for(const id of this.imageIds)if(m.getLayer(id))m.setPaintProperty(id,'raster-opacity',s.opacity);if(m.getLayer(this.layers[0]))m.setPaintProperty(this.layers[0],'fill-opacity',s.opacity*.5);for(const id of this.layers){if(m.getLayer(id))m.setFilter(id,['all',...(id===this.layers[0]?[['==',['geometry-type'],'Polygon']]:id===this.layers[2]||id===this.layers[3]?[['==',['geometry-type'],'Point']]:[]),...(!s.contours?[['!=',['get','_contour'],true]]:[]),...(s.storm?[['==',['get','_storm'],s.storm]]:[])] as any);}if(m.getLayer(this.layers[3]))m.setLayoutProperty(this.layers[3],'visibility',s.labels?'visible':'none');}

@@ -2,7 +2,7 @@ import type {HistoryAction} from '../broadcast-graphics/sceneDocuments';
 import {EditableText} from '../broadcast-graphics/EditableText';
 export {EditableText} from '../broadcast-graphics/EditableText';
 import {ResizeBox} from '../broadcast-graphics/ResizeBox';
-import {useEffect,useRef,useState,type PointerEvent,type CSSProperties} from 'react';
+import {type CSSProperties} from 'react';
 import type {SceneSettings} from './model';
 export interface TitleLayout {x:number;y:number;width:number}
 export const titleLayout=():TitleLayout=>({x:3,y:3,width:94});

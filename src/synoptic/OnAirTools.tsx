@@ -29,11 +29,12 @@ export function OnAirProvider({children}:{children:ReactNode}){
 }
 export function OnAirDrawing({map,snapshot,live=false}:{map:WeatherMap|null;snapshot:ToolsSnapshot;live?:boolean}){
  const context=useContext(Context),mode=live?context?.mode??'none':'none',[,tick]=useState(0),[draft,setDraft]=useState<LonLat[]>([]),drawing=useRef<LonLat[]|null>(null);
- useEffect(()=>{if(!map)return;const update=()=>tick(n=>n+1);map.on('move',update);map.on('idle',update);return()=>{map.off('move',update);map.off('idle',update);};},[map]);
+ const hasDrawing=!!(snapshot.objects.track.length||snapshot.objects.strokes.length||draft.length);
+ useEffect(()=>{if(!map||!hasDrawing)return;const update=()=>tick(n=>n+1);map.on('move',update);map.on('idle',update);return()=>{map.off('move',update);map.off('idle',update);};},[map,hasDrawing]);
  useEffect(()=>{setDraft([]);drawing.current=null;},[mode]);
  if(!map)return null;
  const objects=snapshot.objects,project=(p:LonLat)=>{const q=map.project(p);return`${q.x},${q.y}`;},point=(e:{clientX:number;clientY:number})=>{const r=map.getCanvas().getBoundingClientRect(),p=map.unproject([e.clientX-r.left,e.clientY-r.top]);return[p.lng,p.lat]as LonLat;};
- const cities:City[]=[];if(objects.track.length===2){const layers=map.getStyle().layers.filter(l=>l.id.startsWith('rbrwx-city-')).map(l=>l.id);if(layers.length)for(const f of map.queryRenderedFeatures({layers})){if(f.geometry.type!=='Point')continue;const name=String(f.properties?.['name:en']??f.properties?.name??'');if(name)cities.push({name,point:f.geometry.coordinates.slice(0,2)as LonLat});}}
+ const cities:City[]=[];if(objects.track.length===2){const layers=map.getLayersOrder().filter(id=>id.startsWith('rbrwx-city-'));if(layers.length)for(const f of map.queryRenderedFeatures({layers})){if(f.geometry.type!=='Point')continue;const name=String(f.properties?.['name:en']??f.properties?.name??'');if(name)cities.push({name,point:f.geometry.coordinates.slice(0,2)as LonLat});}}
  const validTrack=objects.track.length===2&&objects.mph>0,estimates=validTrack?cityTimings(objects.track[0],objects.track[1],objects.mph,cities):[],direction=validTrack?bearing(objects.track[0],objects.track[1]):0,end=validTrack?destination(objects.track[0],direction,objects.mph*1.609344*.5):null;
  return <><svg className="onair-drawing" style={{pointerEvents:mode==='none'?'none':'auto',cursor:mode==='none'?undefined:'crosshair'}}
  onPointerDown={e=>{if(!context||e.button!==0)return;e.stopPropagation();const p=point(e);if(mode==='track'){const next=draft.length?[draft[0],p]:[p];setDraft(next);if(next.length===2){context.edit({track:next,time:Date.now()});context.setMode('none');}return;}if(mode==='pen'){drawing.current=[p];setDraft([p]);e.currentTarget.setPointerCapture(e.pointerId);}}}

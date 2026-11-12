@@ -372,14 +372,12 @@ function OperatorWorkspace({
   setHiddenMenuAvailable: (value: boolean) => void;
 }) {
   const broadcast = useBroadcast();
-  const weather = useCurrentWeather();
   const radar = useRadarOverlay();
   const ewx = useEwxAlerts();
   const tools=useOnAirTools();
   const onAirCommand=useOnAirCommands(),playback=usePlaybackState(),presets=useLayerPresets();
   const actionHandler=useRef(onAirCommand);actionHandler.current=onAirCommand;
   const forecast = useForecastGraphics();
-  const qpf = useQpf();
   const synoptic = useSynoptic();
   useGraphicRadarMap(synoptic.map,forecast.active&&radar.enabled);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -388,6 +386,7 @@ function OperatorWorkspace({
   const [popoutMessage, setPopoutMessage] = useState('');
   useEffect(()=>{let stopped=false;const check=async()=>{try{const open=await invoke<boolean>('canvas_window_open');if(!stopped&&typeof open==='boolean')setPopoutMessage(open?'CANVAS WINDOW OPEN':'');}catch{}};void check();const timer=setInterval(()=>void check(),2000);return()=>{stopped=true;clearInterval(timer);};},[]);
   useEffect(()=>{const key=(event:KeyboardEvent)=>{const target=event.target as HTMLElement|null;if(target?.isContentEditable||target?.closest('input,textarea,select')||!(event.ctrlKey||event.metaKey))return;const k=event.key.toLowerCase();if(k==='z'||k==='y'){event.preventDefault();onAirCommand(k==='y'||event.shiftKey?'edit:redo':'edit:undo');}};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);},[onAirCommand]);
+  const popoutOpen = popoutMessage === 'CANVAS WINDOW OPEN';
   const zoomLabel = useMemo(() => camera.zoom.toFixed(1), [camera.zoom]);
 
   const toggle = useCallback((group: BroadcastLayerGroup) => {
@@ -406,6 +405,7 @@ function OperatorWorkspace({
   useEffect(() => {
     let cancelled = false;
     let busy = false;
+    if (!popoutOpen) return;
     const apply = (action: OperatorAction) => {
       if(actionHandler.current(action))return;
       if (action === 'hide-menu') setHiddenMenuAvailable(false);
@@ -425,7 +425,7 @@ function OperatorWorkspace({
     void poll();
     const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [setHiddenMenuAvailable]);
+  }, [setHiddenMenuAvailable, popoutOpen]);
 
   return <main className="app-shell rbrwx-broadcast-workspace">
     <header className="topbar operator-topbar">
@@ -575,7 +575,7 @@ export function RbrwxCanvasCaptureWorkspace() {
       }
     };
     void poll();
-    const timer = window.setInterval(() => void poll(), 33);
+    const timer = window.setInterval(() => void poll(), 100);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, []);
 

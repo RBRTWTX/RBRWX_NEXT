@@ -59,7 +59,8 @@ export function SynopticControls(){const c=useSynoptic();if(!c.active)return nul
  <p role="status">{PRODUCTS.find(p=>p.id===c.snapshot.productId)?.source} · {c.snapshot.status}<br/>Data valid: {c.snapshot.payload?.time?new Date(c.snapshot.payload.time).toLocaleString():'Not supplied'}</p></div>;}
 function Objects({snapshot,map,editable=false}:{snapshot:PackSnapshot;map:WeatherMap|null;editable?:boolean}){
  const context=useContext(Context),[revision,setRevision]=useState(0),[pending,setPending]=useState<[number,number][]>([]);void revision;
- useEffect(()=>{if(!map)return;const update=()=>setRevision(n=>n+1);map.on('move',update);map.on('resize',update);return()=>{map.off('move',update);map.off('resize',update);};},[map]);
+ const hasObjects=!!(pending.length||snapshot.settings.objects.length||(!snapshot.settings.manualSurface&&snapshot.payload?.objects?.length));
+ useEffect(()=>{if(!map||!hasObjects)return;const update=()=>setRevision(n=>n+1);map.on('move',update);map.on('resize',update);return()=>{map.off('move',update);map.off('resize',update);};},[map,hasObjects]);
  useEffect(()=>{if(!map||!editable||!context?.drawing)return;const kind=context.drawing;setPending([]);let points:[number,number][]=[];
   const save=()=>{if(!points.length)return;context.edit({objects:[...snapshot.settings.objects,{id:crypto.randomUUID(),kind,points,text:kind==='text'?'AIR MASS':'',origin:'operator'}]});context.draw(null);setPending([]);};
   const click=(e:any)=>{points=[...points,[e.lngLat.lng,e.lngLat.lat]];setPending(points);if(['H','L','text','hurricane','tropical-storm'].includes(kind))save();};
@@ -79,7 +80,8 @@ function Objects({snapshot,map,editable=false}:{snapshot:PackSnapshot;map:Weathe
 export function SynopticShell({snapshot,map,editable=false}:{snapshot:PackSnapshot;map:WeatherMap|null;editable?:boolean}){
  const context=useContext(Context);const edit=editable?context?.edit:undefined;
  const [details,setDetails]=useState<Record<string,unknown>|null>(null),[,tick]=useState(0);const product=PRODUCTS.find(p=>p.id===snapshot.productId),s=snapshot.settings;
- useEffect(()=>{const timer=setInterval(()=>tick(n=>n+1),1000);return()=>clearInterval(timer);},[]);
+ const expires=snapshot.payload?.expires;
+ useEffect(()=>{if(!expires||expires<=Date.now())return;const timer=setTimeout(()=>tick(n=>n+1),expires-Date.now()+1);return()=>clearTimeout(timer);},[expires]);
  useEffect(()=>{if(!map||!s.detailsVisible)return;const click=(e:any)=>{const layers=['rbrwx-synoptic-fill','rbrwx-synoptic-line','rbrwx-synoptic-point'].filter(l=>map.getLayer(l));if(layers.length)setDetails(map.queryRenderedFeatures(e.point,{layers})[0]?.properties??null);};map.on('click',click);return()=>{map.off('click',click);};},[map,s.detailsVisible]);
  useEffect(()=>setDetails(null),[snapshot.productId]);
  if(!product)return null;const expired=!!snapshot.payload?.expires&&snapshot.payload.expires<Date.now(),payload=expired?null:snapshot.payload,valid=payload?.time?new Date(payload.time).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}):product.kind==='manual'&&s.forecastTime?`${new Date(s.forecastTime).toLocaleString()} · OPERATOR FORECAST`:'VALID TIME NOT SUPPLIED';

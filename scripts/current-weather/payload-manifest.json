@@ -14,7 +14,7 @@
     "src/current-weather/CurrentWeather.tsx": "41efb19b351fefbab37e9dc8ab79cfd9d4f7c5f9a3f15aaa9681a33049abaa77",
     "src/current-weather/EwxAlerts.tsx": "d1de1d9259f209887f0e90227b1f156b30371e8df420859f5379d1af282be10a",
     "src/current-weather/RadarScope1.pal": "c5584089eb0f62d2382e1ac8a58a0dabf43729b87fd3b178ed6037c776a1887b",
-    "src/current-weather/controller.ts": "7bb80eb8de22f89b45824eff49482138fbfc738cb38ef71f3730d1a35cbb424c",
+    "src/current-weather/controller.ts": "3a71cfb63e1d6dcc75111dea3db187465112a5b17e7620a3035b537b27e3b2eb",
     "src/current-weather/ewx-alert-data.ts": "77d86725dd89fc1d15d521c0066dcddbd7d89137ddddd2f2b07638aa39a8fd4d",
     "src/current-weather/ewx-alerts.css": "d74ff894a1c261ce07de22c9fe509e40bc7cec65a53df85efc2167d77b187f0e",
     "src/current-weather/imagery-presentation.ts": "b513535c01e0cd8225cf9a8badbf46617618031285377af518c63667e46e7762",

@@ -1,5 +1,5 @@
 import {EwxProvider} from '../current-weather/EwxAlerts';
-import { useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useBroadcast } from '../broadcast';
 import { CurrentWeatherProvider } from '../current-weather/CurrentWeather';
 import type { Product } from '../current-weather/model';

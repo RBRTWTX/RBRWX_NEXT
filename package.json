@@ -32,6 +32,7 @@
     "onair:test": "node --test scripts/onair/*.test.mjs",
     "qpf:test": "node --test scripts/qpf/*.test.mjs",
     "refinement:test": "node --test scripts/refinement/*.test.mjs",
+    "performance:test": "node scripts/render/responsiveness.mjs",
     "render:test": "node scripts/render/run.mjs",
     "release:windows": "node scripts/release/windows.mjs",
     "editor:test": "node scripts/render/editor.mjs"

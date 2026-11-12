@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useSyncExternalStore} from 'react';
+import {useCallback, useSyncExternalStore} from 'react';
 
 // One versioned envelope for every editable scene family. Live weather never enters history.
 const STORAGE = 'rbrwx.scene-documents.v1';
@@ -25,13 +25,24 @@ function read():Documents {
   try {const raw=JSON.parse(localStorage.getItem(STORAGE)??'null');documents=raw?.schema===1&&raw.entries&&typeof raw.entries==='object'&&!Array.isArray(raw.entries)?Object.fromEntries(Object.entries(raw.entries).filter(([,entry])=>!!entry&&typeof entry==='object'&&Array.isArray((entry as Entry<unknown>).past)&&Array.isArray((entry as Entry<unknown>).future)&&'value' in entry)) as Documents:{};} catch {documents={};}
   return documents!;
 }
-function publish(next:Documents) {
-  documents=next;
+// All editors share persistence, but changing a title must not invalidate
+// snapshots for unrelated forecast, layer-preset, or EWX controls.
+const scopeViews = new Map<string,Record<string,unknown>>();
+function scopeView<T>(scope:string):Record<string,T> {
+  let view=scopeViews.get(scope);
+  if(!view){
+    view=Object.fromEntries(Object.entries(read()).filter(([key])=>key.startsWith(scope+':')&&!key.endsWith(':__migrated')).map(([key,e])=>[key.slice(scope.length+1),e.value]));
+    scopeViews.set(scope,view);
+  }
+  return view as Record<string,T>;
+}
+function publish(next:Documents,scope:string) {
+  documents=next;scopeViews.delete(scope);
   if(writeTimer)clearTimeout(writeTimer);writeTimer=setTimeout(flush,250);
   listeners.forEach(fn=>fn());
 }
 export function changeEntry<T>(entry:Entry<T>,value:T,now=Date.now(),group=false):Entry<T> {
-  if(JSON.stringify(value)===JSON.stringify(entry.value))return entry;
+  if(Object.is(value,entry.value)||JSON.stringify(value)===JSON.stringify(entry.value))return entry;
   return {value,past:group&&now-entry.stamp<400?entry.past:[...entry.past,entry.value].slice(-LIMIT),future:[],saved:entry.saved,stamp:now};
 }
 export type HistoryAction='undo'|'redo'|'save'|'restore'|'reset';
@@ -49,14 +60,14 @@ export function useSceneRecords<T>(scope:string,legacy:()=>Record<string,T>) {
     const next={...read()};for(const[id,value]of Object.entries(legacy()))next[`${scope}:${id}`]??={value,past:[],future:[],stamp:0};
     next[`${scope}:__migrated`]={value:true,past:[],future:[],stamp:0};documents=next;
   }
-  const snapshot=useSyncExternalStore(useCallback(fn=>{listeners.add(fn);return()=>{listeners.delete(fn);};},[]),read,read);
-  const records=useMemo(()=>Object.fromEntries(Object.entries(snapshot).filter(([key])=>key.startsWith(scope+':')&&!key.endsWith(':__migrated')).map(([key,e])=>[key.slice(scope.length+1),e.value])) as Record<string,T>,[snapshot,scope]);
+  const getSnapshot=useCallback(()=>scopeView<T>(scope),[scope]);
+  const records=useSyncExternalStore(useCallback(fn=>{listeners.add(fn);return()=>{listeners.delete(fn);};},[]),getSnapshot,getSnapshot);
   const set=useCallback((update:Record<string,T>|((old:Record<string,T>)=>Record<string,T>))=>{
-    const base=read(),old=Object.fromEntries(Object.entries(base).filter(([key])=>key.startsWith(scope+':')&&!key.endsWith(':__migrated')).map(([key,e])=>[key.slice(scope.length+1),e.value])) as Record<string,T>;
+    const base=read(),old=scopeView<T>(scope);
     const values=typeof update==='function'?update(old):update,next={...base};let changed=false;
     for(const[id,value]of Object.entries(values)){const key=`${scope}:${id}`,entry=base[key] as Entry<T>|undefined;const after=entry?changeEntry(entry,value,Date.now(),dragging):{value,past:[],future:[],stamp:0};if(after!==entry){next[key]=after;changed=true;}}
-    if(changed)publish(next);
+    if(changed)publish(next,scope);
   },[scope]);
-  const history=useCallback((id:string,action:HistoryAction,initial:T)=>{const key=`${scope}:${id}`,entry=(read()[key] as Entry<T>)??{value:initial,past:[],future:[],stamp:0};publish({...read(),[key]:historyEntry(entry,action,initial)});},[scope]);
+  const history=useCallback((id:string,action:HistoryAction,initial:T)=>{const key=`${scope}:${id}`,entry=(read()[key] as Entry<T>)??{value:initial,past:[],future:[],stamp:0};publish({...read(),[key]:historyEntry(entry,action,initial)},scope);},[scope]);
   return [records,set,history] as const;
 }

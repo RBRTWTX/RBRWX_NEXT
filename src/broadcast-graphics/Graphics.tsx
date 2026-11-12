@@ -2,9 +2,9 @@ import {EditableText} from './EditableText';
 import {useSceneRecords,type HistoryAction} from './sceneDocuments';
 import {ResizeBox} from './ResizeBox';
 import { BarLibrary } from './BarLibrary';
-import { barPresentation, type BarStyles } from './barStyles';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
-import { changeLayout, constrain, freshCopy, freshLayouts, sizes, titleText, type Copy, type Kind, type Layout, type Scene } from './state';
+import { barPresentation } from './barStyles';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { constrain, freshCopy, freshLayouts, sizes, titleText, type Copy, type Kind, type Layout, type Scene } from './state';
 import './graphics.css';
 import { KeysMenu, TitleKey } from './keys/Keys';
 import { resolveWeatherKey, type WeatherKey } from './keys/model';
@@ -42,7 +42,7 @@ export function GraphicsProvider({ scene, children, extraKeys = [] }: { scene: S
 }
 function ServiceLegend({url,label}:{url:string;label:string}){const[failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);return <div className="wx-service-key"><span>{label}</span>{failed?<b>Key unavailable</b>:<img src={url} alt={label} onError={()=>setFailed(true)}/>}</div>;}
 function Bar({ kind, viewScale }: { kind: Kind; viewScale: number }) {
-  const { scene, copy, edit, layouts, position, extraKeys, history } = useGraphics();
+  const { scene, copy, edit, layouts, extraKeys, history } = useGraphics();
   const weatherKey = kind === 'title' ? resolveWeatherKey(copy.keySelection ?? 'auto', scene?.weatherKeyId, extraKeys) : undefined;
   const layout = layouts[kind];
   const appearance = barPresentation(copy.barStyles?.[kind]);
@@ -98,7 +98,7 @@ export function GraphicsSnapshotOverlay({ snapshot, extraKeys = [] }: { snapshot
 }
 
 export function GraphicsControls() {
-  const { scene, copy, edit, visible, toggle, layouts, position, extraKeys, history } = useGraphics();
+  const { scene, copy, edit, visible, toggle, extraKeys } = useGraphics();
   return <section className="wxg-menu" aria-label="Graphics">
     <div className="panel-heading">GRAPHICS</div>
     <button onClick={()=>{if(!visible.title)toggle('title');}}>Add / show title bar</button>

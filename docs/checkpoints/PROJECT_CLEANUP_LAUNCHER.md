@@ -71,8 +71,9 @@ executable triggers npm ci, npm run verify, cargo check --locked and Tauri's no-
 release build. Build errors keep the window open and do not launch stale weather UI.
 Source changes during a build prevent publication. A build lock prevents concurrent
 launcher builds. Completed executables are copied to ignored .rbrwx-launcher and an
-atomic current.json update selects the new one; prior copies remain available for
-manual recovery. No previous version is launched automatically after an error.
+atomic current.json update selects the new one; the previous selected executable remains available for
+manual recovery. After a successful publication, older launcher-generated UUID
+executables in that cache are pruned. Locked files are left in place. No previous version is launched automatically after an error.
 
 Release builds now use the Windows GUI subsystem, avoiding a persistent console
 behind the native window. Debug development behavior remains unchanged. Subsequent

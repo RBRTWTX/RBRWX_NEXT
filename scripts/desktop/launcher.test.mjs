@@ -69,3 +69,15 @@ test('malformed or redirected launcher state cannot select an arbitrary executab
   fs.writeFileSync(state, JSON.stringify({ schema: 1, fingerprint, file: '../another.exe' }));
   assert.equal(currentExecutable(root, fingerprint), null);
 });
+
+test('pruning starts only after publication and retains the previous executable and unrelated files', t => {
+  const root=fixture(t), fp=sourceFingerprint(root), built=path.join(root,'build.exe');
+  fs.writeFileSync(built,'release 1');
+  const first=publishExecutable(root,fp,built), second=publishExecutable(root,fp,built), dir=path.dirname(first);
+  const userFile=path.join(dir,'station-backup.exe');fs.writeFileSync(userFile,'user file');
+  assert.throws(()=>publishExecutable(root,fp,path.join(root,'missing.exe')));
+  assert.ok(fs.existsSync(first));assert.ok(fs.existsSync(second));
+  const third=publishExecutable(root,fp,built);
+  assert.ok(!fs.existsSync(first));assert.ok(fs.existsSync(second));
+  assert.equal(currentExecutable(root,fp),third);assert.equal(fs.readFileSync(userFile,'utf8'),'user file');
+});

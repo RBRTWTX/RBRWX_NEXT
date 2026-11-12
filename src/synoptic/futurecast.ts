@@ -14,7 +14,7 @@ export function hrrrFrames(catalog:string[],now=Date.now()):Frame[] {
  throw Error('No complete fresh HRRR 0–18 hour run published');
 }
 export async function discoverHrrr(signal:AbortSignal):Promise<Frame[]> {
- const now=Date.now(),dates=[now,now-86400000].map(t=>new Date(t).toISOString().slice(0,10).replaceAll('-',''));
+ const now=Date.now();
  // Narrow per-cycle prefixes avoid pulling all pressure-level catalogs.
  const catalogs:string[][]=[];
  for(let age=1;age<=6;age++){

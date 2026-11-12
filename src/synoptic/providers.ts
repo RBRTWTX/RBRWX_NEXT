@@ -1,6 +1,6 @@
 import {discoverHrrr} from './futurecast';
-import type { Feature, FeatureCollection } from 'geojson';
-import type { Frame, Payload, Product, SceneSettings, WeatherObject } from './model';
+import type { Feature } from 'geojson';
+import type { Frame, Payload, Product, WeatherObject } from './model';
 export async function response(url:string,signal:AbortSignal) {const r=await fetch(url,{signal:AbortSignal.any([signal,AbortSignal.timeout(30000)]),credentials:'omit',cache:'no-store'});if(!r.ok)throw Error(`Provider HTTP ${r.status}`);return r;}
 async function json(url:string,signal:AbortSignal){const v=await (await response(url,signal)).json();if(v.error)throw Error(v.error.message??'Provider error');return v;}
 export function timestamp(raw:unknown):number|null {

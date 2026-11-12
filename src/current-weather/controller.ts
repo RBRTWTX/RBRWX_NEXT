@@ -220,22 +220,26 @@ export class CurrentWeatherController {
   private refreshing = false;
   private paletteFallback = false;
   private observations = new ObservationsClient();
+  private drawn: { observations: Observation[]; field: CurrentConditionField; viewport: string; units: Options['units']; opacity: number } | null = null;
   private requestedPrimaryRadar: string | null = null;
   snapshot = initialSnapshot();
 
   constructor(private notify: (snapshot: Snapshot) => void, private factory = loadManager, private ownsObservations = true) { }
-  private emit(patch: Partial<Snapshot>) { this.snapshot = { ...this.snapshot, ...patch }; this.notify(this.snapshot); }
+  private emit(patch: Partial<Snapshot>) {
+    if ((Object.keys(patch) as (keyof Snapshot)[]).every(key => Object.is(this.snapshot[key], patch[key]))) return;
+    this.snapshot = { ...this.snapshot, ...patch }; this.notify(this.snapshot); }
   connect(map: WeatherMap, anchor: string): () => void { this.map = map; this.anchor = anchor; void this.start(); return () => { this.clear(); this.map = null; }; }
 
   select(scene: string, product: Product, options: Options, apiKey: string) {
+    const previous = this.options;
     const previousMrmsEnabled = this.options.mrmsEnabled;
     const previousSweepsEnabled = this.options.sweepsEnabled;
     const reload = scene !== this.scene || product !== this.product || apiKey !== this.apiKey || options.radarField!==this.options.radarField || options.satelliteFeed!==this.options.satelliteFeed;
     this.scene = scene; this.product = product; this.options = options; this.apiKey = apiKey;
     if (reload) void this.start();
     else {
-      void this.manager?.setOpacity(options.opacity).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update imagery opacity' }));
-      void this.manager?.setUnits(options.units).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update weather units' }));
+      if (options.opacity !== previous.opacity) void this.manager?.setOpacity(options.opacity).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update imagery opacity' }));
+      if (options.units !== previous.units) void this.manager?.setUnits(options.units).catch(() => this.emit({ status: 'unavailable', message: 'Unable to update weather units' }));
       if (options.mrmsEnabled !== previousMrmsEnabled && this.product === 'radar') {
         void this.manager?.setMRMSEnabled?.(options.mrmsEnabled).catch(() => this.emit({ message: 'Unable to update the MRMS backup layer' }));
       }
@@ -247,6 +251,7 @@ export class CurrentWeatherController {
   }
 
   private clear() {
+    this.drawn = null;
     this.generation++; this.abort?.abort(); this.abort = null; this.stop();
     if (this.interval) clearInterval(this.interval); if (this.refreshInterval) clearInterval(this.refreshInterval); if (this.moveTimer) clearTimeout(this.moveTimer);
     this.interval = null; this.refreshInterval = null; this.moveTimer = null;
@@ -354,16 +359,31 @@ export class CurrentWeatherController {
     if (this.product !== 'observations' || !this.map) return;
     const observations = this.snapshot.observations.filter(o => usableObservation(o)), field = this.options.currentField;
     const excluded = this.snapshot.observations.length - observations.length;
-    const features = observations.flatMap(observation => {
-      const label = observationFieldLabel(observation, field, this.options.units); if (!label) return [];
-      return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [observation.lng, observation.lat] }, properties: { label } }];
-    });
-    (this.map.getSource(observationSourceId) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-    const raster = buildCurrentFieldImage(this.map, observations, field) ?? transparentCurrentField();
-    const fieldSource = this.map.getSource(currentFieldSourceId) as any;
-    if (typeof fieldSource?.updateImage === 'function') fieldSource.updateImage(raster);
-    if (this.map.getLayer(observationLayerId)) this.map.setPaintProperty(observationLayerId, 'text-opacity', this.options.opacity);
-    if (this.map.getLayer(currentFieldLayerId)) this.map.setPaintProperty(currentFieldLayerId, 'raster-opacity', Math.min(.68, this.options.opacity * .72));
+    const previous = this.drawn;
+    // Reports are immutable. Check membership as well as data changes: a report can
+    // expire (or become usable) between provider refreshes.
+    const sameSamples = previous?.field === field && observations.length === previous.observations.length &&
+      observations.every((sample,i) => sample === previous.observations[i]);
+    const bounds = this.map.getBounds(), canvas = this.map.getCanvas();
+    const viewport = [bounds.getWest(),bounds.getEast(),bounds.getNorth(),bounds.getSouth(),
+      this.map.getZoom(),canvas.clientWidth || canvas.width,canvas.clientHeight || canvas.height].join(':');
+    if (!sameSamples || previous?.units !== this.options.units) {
+      const features = observations.flatMap(observation => {
+        const label = observationFieldLabel(observation, field, this.options.units); if (!label) return [];
+        return [{ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [observation.lng, observation.lat] }, properties: { label } }];
+      });
+      (this.map.getSource(observationSourceId) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
+    }
+    if (!sameSamples || previous?.viewport !== viewport) {
+      const raster = buildCurrentFieldImage(this.map, observations, field) ?? transparentCurrentField();
+      const fieldSource = this.map.getSource(currentFieldSourceId) as any;
+      fieldSource?.updateImage?.(raster);
+    }
+    if (previous?.opacity !== this.options.opacity) {
+      if (this.map.getLayer(observationLayerId)) this.map.setPaintProperty(observationLayerId, 'text-opacity', this.options.opacity);
+      if (this.map.getLayer(currentFieldLayerId)) this.map.setPaintProperty(currentFieldLayerId, 'raster-opacity', Math.min(.68, this.options.opacity * .72));
+    }
+    this.drawn = {observations,field,viewport,units:this.options.units,opacity:this.options.opacity};
     if (observations.length) {
       const states = observations.map(o => freshness(o.time, 90, o.cached));
       const status = states.includes('unavailable') ? 'unavailable' : states.includes('stale') ? 'stale' : states.includes('cached') ? 'cached' : 'fresh';
